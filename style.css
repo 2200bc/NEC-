@@ -1,0 +1,27 @@
+body {
+  font-family: sans-serif;
+  background: #1a1a1a;
+  color: #f0f0f0;
+  padding: 20px;
+}
+button {
+  margin: 5px;
+  padding: 10px;
+  font-size: 16px;
+}
+input, select {
+  margin: 5px;
+  padding: 8px;
+  font-size: 16px;
+}
+.section {
+  margin-top: 20px;
+}
+.hidden {
+  display: none;
+}
+.menu button {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+}

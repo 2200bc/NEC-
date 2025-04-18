@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEC Калькулятор</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1a1a1a"/>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(reg => console.log('SW зарегистрирован:', reg))
+          .catch(err => console.error('SW ошибка:', err));
+      });
+    }
+  </script>
+</head>
+<body>
+  <h1>NEC Калькулятор</h1>
+  <div class="menu">
+    <button onclick="showSection('lines')">1. Подбор проводов</button>
+    <button onclick="showSection('derating')">2. Дирейтинг</button>
+    <button onclick="showSection('voltage')">3. Падение напряжения</button>
+    <button onclick="showSection('panel')">4. Загрузка панели</button>
+  </div>
+
+  <div id="section-lines" class="section">
+    <h2>Добавить линию</h2>
+    <input type="text" id="line-name" placeholder="Имя линии" />
+    <input type="number" id="line-amps" placeholder="Ампераж" />
+    <label><input type="radio" name="phase" value="1" checked /> 1 фаза</label>
+    <label><input type="radio" name="phase" value="3" /> 3 фазы</label>
+    <label><input type="checkbox" id="line-neutral" /> С нейтралью</label>
+    <button onclick="addLine()">Добавить</button>
+    <div id="line-list"></div>
+  </div>
+
+  <div id="section-derating" class="section hidden">
+    <h2>Дирейтинг</h2>
+    <select id="derating-lines" multiple size="5" style="width:100%"></select>
+    <input type="number" id="conduit-size" placeholder="Размер трубы (дюймы)" />
+    <button onclick="calculateDerating()">Рассчитать</button>
+    <div id="derating-result"></div>
+  </div>
+
+  <div id="section-voltage" class="section hidden">
+    <h2>Падение напряжения</h2>
+    <select id="voltage-line"></select>
+    <select id="voltage-material">
+      <option value="copper">Медь</option>
+      <option value="aluminum">Алюминий</option>
+    </select>
+    <input type="number" id="voltage-length" placeholder="Длина (футы)" />
+    <input type="number" id="voltage-volts" placeholder="Напряжение (В)" value="240" />
+    <button onclick="calculateVoltageDrop()">Рассчитать</button>
+    <div id="voltage-result"></div>
+  </div>
+
+  <div id="section-panel" class="section hidden">
+    <h2>Загрузка панели</h2>
+    <label><input type="radio" name="panel-type" value="1" checked /> 1 фаза</label>
+    <label><input type="radio" name="panel-type" value="3" /> 3 фазы</label>
+    <input type="number" id="panel-slots" placeholder="Количество слотов" />
+    <button onclick="balancePanel()">Рассчитать</button>
+    <div id="panel-result"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
