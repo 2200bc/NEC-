@@ -107,7 +107,7 @@ function deleteLine(index) {
   updateSelectors();
 }
 
-ffunction renderLines() {
+function renderLines() {
   const container = document.getElementById('line-list');
   container.innerHTML = "";
   lines.forEach((line, i) => {
