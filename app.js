@@ -1,4 +1,3 @@
-
 let lines = JSON.parse(localStorage.getItem('lines') || '[]');
 
 const wireAmpacityTable = [
@@ -47,7 +46,6 @@ function getWireArea(size) {
   const entry = wireAmpacityTable.find(e => e.size === size);
   return entry ? entry.area : 0.01;
 }
-
 function addLine() {
   const name = document.getElementById('line-name').value;
   const amps = parseFloat(document.getElementById('line-amps').value);
@@ -104,14 +102,6 @@ function showSection(id) {
   document.getElementById('section-' + id).classList.remove('hidden');
 }
 
-
-
-
-
-
-
-
-
 function calculateDerating() {
   const selected = Array.from(document.getElementById('derating-lines').selectedOptions).map(o => lines[o.value]);
   const type = document.getElementById('conduit-type').value;
@@ -136,17 +126,63 @@ function calculateDerating() {
   else factor = 0.45;
 
   const fillPercent = ((totalArea / maxFill) * 100).toFixed(1);
-  result += `Жил: ${conductorCount}, коэфф: ${factor}, Загрузка трубы: ${fillPercent}% (${fillPercent <= 100 ? "OK" : "ПЕРЕПОЛНЕНО"})
-
-`;
+  result += `Жил: ${conductorCount}, коэфф: ${factor}, Загрузка трубы: ${fillPercent}% (${fillPercent <= 100 ? "OK" : "ПЕРЕПОЛНЕНО"})\n\n`;
 
   selected.forEach(line => {
     const newSize = getWireSize(line.amps / factor);
-    result += `${line.name}: был ${line.wireSize} → нужен ${newSize}
-`;
+    result += `${line.name}: был ${line.wireSize} → нужен ${newSize}\n`;
+    line.wireSize = newSize;
   });
 
-  document.getElementById('derating-result').textContent = result;
+  localStorage.setItem('lines', JSON.stringify(lines));
+  renderLines();
+  updateSelectors();
+
+  const resEl = document.getElementById('derating-result');
+  resEl.textContent = result;
+  resEl.style.color = fillPercent > 100 ? "red" : "inherit";
+}
+
+function calculateVoltageDrop() {
+  const index = document.getElementById("voltage-line").value;
+  const material = document.getElementById("voltage-material").value;
+  const length = parseFloat(document.getElementById("voltage-length").value);
+  const volts = parseFloat(document.getElementById("voltage-volts").value);
+  if (!lines[index] || !length || !volts) return alert("Заполни все поля");
+
+  const line = lines[index];
+  const is3Phase = line.phase === "3";
+  const resistivity = material === "copper" ? 12.9 : 21.2;
+  const cma = wireAmpacityTable.find(w => w.size === line.wireSize)?.cma || 1000;
+
+  const VD = (2 * length * resistivity * line.amps) / cma / (is3Phase ? Math.sqrt(3) : 1);
+  const percent = ((VD / volts) * 100).toFixed(2);
+
+  document.getElementById("voltage-result").textContent = `Падение напряжения: ${VD.toFixed(2)} В (${percent}%)`;
+}
+function exportData() {
+  const blob = new Blob([JSON.stringify(lines, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "nec_lines.json";
+  a.click();
+}
+
+function importData(event) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!Array.isArray(imported)) throw new Error("Неверный формат");
+      lines = imported;
+      localStorage.setItem('lines', JSON.stringify(lines));
+      renderLines();
+      updateSelectors();
+    } catch (e) {
+      alert("Ошибка импорта: " + e.message);
+    }
+  };
+  reader.readAsText(event.target.files[0]);
 }
 
 function balancePanel() {
@@ -159,7 +195,6 @@ function balancePanel() {
   let phaseLoad = { A: 0, B: 0, C: 0 };
 
   const slotPhase = slot => {
-    const side = (slot + 1) % 2 === 0 ? 'R' : 'L';
     const pos = Math.floor(slot / 2) % 3;
     return ['A', 'B', 'C'][pos];
   };
@@ -177,8 +212,8 @@ function balancePanel() {
   };
 
   let pointer = 0;
-
   const sorted = [...lines].sort((a, b) => b.amps - a.amps);
+
   for (const line of sorted) {
     if (line.phase === "3") {
       const group = getPhaseTriplet();
@@ -197,8 +232,13 @@ function balancePanel() {
     }
   }
 
+  const max = Math.max(phaseLoad.A, phaseLoad.B, phaseLoad.C);
+  const min = Math.min(phaseLoad.A, phaseLoad.B, phaseLoad.C);
+  const delta = max - min;
+  const unbalance = delta > 0.2 * max ? "⚠️ Перекос фаз!" : "";
+
   const output = slotMap.filter(Boolean).join("\n") +
-    `\n\nНагрузка: A=${phaseLoad.A}А, B=${phaseLoad.B}А, C=${phaseLoad.C}А`;
+    `\n\nНагрузка: A=${phaseLoad.A}А, B=${phaseLoad.B}А, C=${phaseLoad.C}А\n${unbalance}`;
   result.textContent = output;
 }
 
