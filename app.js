@@ -175,9 +175,13 @@ function calculateDerating() {
   let result = "";
 
   selected.forEach(line => {
-    const count = line.phase === "3" ? 3 : 2;
+    let count = 0;
+    if (line.phase === "1") count = 1;
+    else if (line.phase === "2") count = 2;
+    else if (line.phase === "3") count = 3;
+    if (line.neutral) count += 1;
+
     conductorCount += count;
-    if (line.neutral) conductorCount += 1;
     totalArea += getWireArea(line.wireSize) * count;
   });
 
