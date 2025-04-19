@@ -1,30 +1,57 @@
 let lines = JSON.parse(localStorage.getItem('lines') || '[]');
 
 const wireAmpacityTable = [
-  { size: "14 AWG", ampacity: 25, area: 0.013, cma: 4110 },
-  { size: "12 AWG", ampacity: 30, area: 0.020, cma: 6530 },
+  { size: "14 AWG", ampacity: 20, area: 0.013, cma: 4110 },
+  { size: "12 AWG", ampacity: 25, area: 0.020, cma: 6530 },
   { size: "10 AWG", ampacity: 35, area: 0.031, cma: 10380 },
   { size: "8 AWG", ampacity: 50, area: 0.050, cma: 16510 },
   { size: "6 AWG", ampacity: 65, area: 0.085, cma: 26240 },
   { size: "4 AWG", ampacity: 85, area: 0.136, cma: 41740 },
   { size: "3 AWG", ampacity: 100, area: 0.160, cma: 52620 },
-  { size: "2 AWG", ampacity: 130, area: 0.208, cma: 66360 },
-  { size: "1 AWG", ampacity: 150, area: 0.262, cma: 83690 },
-  { size: "1/0", ampacity: 170, area: 0.330, cma: 105500 },
-  { size: "2/0", ampacity: 195, area: 0.384, cma: 133100 },
-  { size: "3/0", ampacity: 225, area: 0.460, cma: 167800 },
-  { size: "4/0", ampacity: 260, area: 0.554, cma: 211600 },
-  { size: "250 MCM", ampacity: 290, area: 0.677, cma: 250000 },
-  { size: "300 MCM", ampacity: 320, area: 0.777, cma: 300000 },
-  { size: "350 MCM", ampacity: 350, area: 0.877, cma: 350000 },
-  { size: "400 MCM", ampacity: 380, area: 0.977, cma: 400000 },
-  { size: "500 MCM", ampacity: 430, area: 1.177, cma: 500000 },
-  { size: "600 MCM", ampacity: 475, area: 1.382, cma: 600000 },
-  { size: "700 MCM", ampacity: 520, area: 1.586, cma: 700000 },
-  { size: "750 MCM", ampacity: 535, area: 1.683, cma: 750000 },
-  { size: "800 MCM", ampacity: 555, area: 1.780, cma: 800000 },
-  { size: "900 MCM", ampacity: 585, area: 1.975, cma: 900000 },
-  { size: "1000 MCM", ampacity: 615, area: 2.170, cma: 1000000 }
+  { size: "2 AWG", ampacity: 115, area: 0.208, cma: 66360 },
+  { size: "1 AWG", ampacity: 130, area: 0.262, cma: 83690 },
+  { size: "1/0", ampacity: 150, area: 0.330, cma: 105500 },
+  { size: "2/0", ampacity: 175, area: 0.384, cma: 133100 },
+  { size: "3/0", ampacity: 200, area: 0.460, cma: 167800 },
+  { size: "4/0", ampacity: 230, area: 0.554, cma: 211600 },
+  { size: "250 MCM", ampacity: 255, area: 0.677, cma: 250000 },
+  { size: "300 MCM", ampacity: 285, area: 0.777, cma: 300000 },
+  { size: "350 MCM", ampacity: 310, area: 0.877, cma: 350000 },
+  { size: "400 MCM", ampacity: 335, area: 0.977, cma: 400000 },
+  { size: "500 MCM", ampacity: 380, area: 1.177, cma: 500000 },
+  { size: "600 MCM", ampacity: 420, area: 1.382, cma: 600000 },
+  { size: "700 MCM", ampacity: 460, area: 1.586, cma: 700000 },
+  { size: "750 MCM", ampacity: 475, area: 1.683, cma: 750000 },
+  { size: "800 MCM", ampacity: 490, area: 1.780, cma: 800000 },
+  { size: "900 MCM", ampacity: 520, area: 1.975, cma: 900000 },
+  { size: "1000 MCM", ampacity: 545, area: 2.170, cma: 1000000 }
+];
+
+const wireAmpacityTable90C = [
+  { size: "14 AWG", ampacity: 25 },
+  { size: "12 AWG", ampacity: 30 },
+  { size: "10 AWG", ampacity: 40 },
+  { size: "8 AWG", ampacity: 55 },
+  { size: "6 AWG", ampacity: 75 },
+  { size: "4 AWG", ampacity: 95 },
+  { size: "3 AWG", ampacity: 110 },
+  { size: "2 AWG", ampacity: 130 },
+  { size: "1 AWG", ampacity: 150 },
+  { size: "1/0", ampacity: 170 },
+  { size: "2/0", ampacity: 195 },
+  { size: "3/0", ampacity: 225 },
+  { size: "4/0", ampacity: 260 },
+  { size: "250 MCM", ampacity: 290 },
+  { size: "300 MCM", ampacity: 320 },
+  { size: "350 MCM", ampacity: 350 },
+  { size: "400 MCM", ampacity: 380 },
+  { size: "500 MCM", ampacity: 430 },
+  { size: "600 MCM", ampacity: 475 },
+  { size: "700 MCM", ampacity: 520 },
+  { size: "750 MCM", ampacity: 535 },
+  { size: "800 MCM", ampacity: 555 },
+  { size: "900 MCM", ampacity: 585 },
+  { size: "1000 MCM", ampacity: 615 }
 ];
 
 const conduitFillTable = {
@@ -38,6 +65,12 @@ const conduitFillTable = {
 function getWireSize(amps) {
   for (let i = 0; i < wireAmpacityTable.length; i++) {
     if (amps <= wireAmpacityTable[i].ampacity) return wireAmpacityTable[i].size;
+  }
+  return "больше 1000 MCM";
+}
+function getWireSizeDerated(amps) {
+  for (let i = 0; i < wireAmpacityTable90C.length; i++) {
+    if (amps <= wireAmpacityTable90C[i].ampacity) return wireAmpacityTable90C[i].size;
   }
   return "больше 1000 MCM";
 }
@@ -138,22 +171,18 @@ function calculateDerating() {
   else factor = 0.45;
 
   const fillPercent = ((totalArea / maxFill) * 100).toFixed(1);
-  result += `Жил: ${conductorCount}, коэфф: ${factor}, Загрузка трубы: ${fillPercent}% (${fillPercent <= 100 ? "OK" : "ПЕРЕПОЛНЕНО"})\\n\\n`;
+  result += `Жил: ${conductorCount}, коэфф: ${factor}, Загрузка трубы: ${fillPercent}% (${fillPercent <= 100 ? "OK" : "ПЕРЕПОЛНЕНО"})\n\n`;
 
   selected.forEach(line => {
-    const newSize = getWireSize(line.amps / factor);
-    result += `${line.name}: был ${line.wireSize} → нужен ${newSize}\\n`;
-    line.wireSize = newSize;
+    const newSize = getWireSizeDerated(line.amps / factor);
+    result += `${line.name}: был ${line.wireSize} → нужен ${newSize}\n`;
   });
-
-  localStorage.setItem('lines', JSON.stringify(lines));
-  renderLines();
-  updateSelectors();
 
   const resEl = document.getElementById('derating-result');
   resEl.textContent = result;
   resEl.style.color = fillPercent > 100 ? "red" : "inherit";
 }
+
 
 function calculateVoltageDrop() {
   const index = document.getElementById("voltage-line").value;
