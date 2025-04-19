@@ -107,15 +107,22 @@ function deleteLine(index) {
   updateSelectors();
 }
 
-function renderLines() {
+ffunction renderLines() {
   const container = document.getElementById('line-list');
   container.innerHTML = "";
   lines.forEach((line, i) => {
+    const phaseText =
+      line.phase === "1" ? "1 фаза" :
+      line.phase === "2" ? "2 фазы" :
+      "3 фазы";
+    const neutralText = line.neutral ? ", с нейтралью" : "";
     const div = document.createElement("div");
-    div.innerHTML = `${line.name}: ${line.amps}А, ${line.phase} фазы${line.neutral ? ", с нейтралью" : ""} → ${line.wireSize}
+    div.innerHTML = `${line.name}: ${line.amps}А, ${phaseText}${neutralText} → ${line.wireSize}
       <button onclick="deleteLine(${i})">Удалить</button>`;
     container.appendChild(div);
   });
+}
+
 }
 
 function updateSelectors() {
