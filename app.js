@@ -250,6 +250,17 @@ function resetCalculator() {
     document.getElementById('panel-result').textContent = "";
   }
 }
+function exportData() {
+  const blob = new Blob([JSON.stringify(lines, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "nec_lines.json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 window.onload = () => {
   showSection('lines');
