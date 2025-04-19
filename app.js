@@ -123,7 +123,7 @@ function renderLines() {
   });
 }
 
-}
+
 
 function updateSelectors() {
   const derList = document.getElementById('derating-lines-list');
