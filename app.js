@@ -167,35 +167,21 @@ function calculateVoltageDrop() {
   const resistivity = material === "copper" ? 12.9 : 21.2;
   const cma = wireAmpacityTable.find(w => w.size === line.wireSize)?.cma || 1000;
 
-  const VD = (2 * length * resistivity * line.amps) / cma / (is3Phase ? Math.sqrt(3) : 1);
+  const multiplier = is3Phase ? Math.sqrt(3) : 2;
+  const VD = (multiplier * length * resistivity * line.amps) / cma;
   const percent = ((VD / volts) * 100).toFixed(2);
 
-  document.getElementById("voltage-result").textContent = `Падение напряжения: ${VD.toFixed(2)} В (${percent}%)`;
-}
-function exportData() {
-  const blob = new Blob([JSON.stringify(lines, null, 2)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "nec_lines.json";
-  a.click();
+  const resultEl = document.getElementById("voltage-result");
+  resultEl.textContent = `Падение напряжения: ${VD.toFixed(2)} В (${percent}%)`;
+
+  if (percent > 3) {
+    resultEl.style.color = "red";
+    resultEl.textContent += " — превышение допустимого 3% по NEC!";
+  } else {
+    resultEl.style.color = "inherit";
+  }
 }
 
-function importData(event) {
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const imported = JSON.parse(e.target.result);
-      if (!Array.isArray(imported)) throw new Error("Неверный формат");
-      lines = imported;
-      localStorage.setItem('lines', JSON.stringify(lines));
-      renderLines();
-      updateSelectors();
-    } catch (e) {
-      alert("Ошибка импорта: " + e.message);
-    }
-  };
-  reader.readAsText(event.target.files[0]);
-}
 
 function balancePanel() {
   const type = document.querySelector('input[name="panel-type"]:checked').value;
