@@ -86,16 +86,27 @@ function renderLines() {
 }
 
 function updateSelectors() {
-  const derSel = document.getElementById('derating-lines');
+  const derList = document.getElementById('derating-lines-list');
   const vSel = document.getElementById('voltage-line');
-  derSel.innerHTML = "";
+  derList.innerHTML = "";
   vSel.innerHTML = "";
   lines.forEach((line, i) => {
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = i;
+    label.appendChild(checkbox);
+    const neutralText = line.neutral ? "+N" : "";
+    const phaseText = line.phase === "3" ? `3Ø${neutralText}` : `1Ø${neutralText}`;
+    label.appendChild(document.createTextNode(` ${line.amps}A — ${phaseText} — ${line.name}`));
+    derList.appendChild(label);
+    derList.appendChild(document.createElement("br"));
+
     const opt = new Option(`${line.name}`, i);
-    derSel.appendChild(opt.cloneNode(true));
     vSel.appendChild(opt);
   });
 }
+
 
 function showSection(id) {
   document.querySelectorAll('.section').forEach(sec => sec.classList.add('hidden'));
@@ -103,7 +114,8 @@ function showSection(id) {
 }
 
 function calculateDerating() {
-  const selected = Array.from(document.getElementById('derating-lines').selectedOptions).map(o => lines[o.value]);
+  const checkboxes = document.querySelectorAll('#derating-lines-list input[type=checkbox]');
+  const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => lines[cb.value]);
   const type = document.getElementById('conduit-type').value;
   const size = document.getElementById('conduit-size').value;
   const maxFill = conduitFillTable[type]?.[size] || 1;
@@ -126,11 +138,11 @@ function calculateDerating() {
   else factor = 0.45;
 
   const fillPercent = ((totalArea / maxFill) * 100).toFixed(1);
-  result += `Жил: ${conductorCount}, коэфф: ${factor}, Загрузка трубы: ${fillPercent}% (${fillPercent <= 100 ? "OK" : "ПЕРЕПОЛНЕНО"})\n\n`;
+  result += `Жил: ${conductorCount}, коэфф: ${factor}, Загрузка трубы: ${fillPercent}% (${fillPercent <= 100 ? "OK" : "ПЕРЕПОЛНЕНО"})\\n\\n`;
 
   selected.forEach(line => {
     const newSize = getWireSize(line.amps / factor);
-    result += `${line.name}: был ${line.wireSize} → нужен ${newSize}\n`;
+    result += `${line.name}: был ${line.wireSize} → нужен ${newSize}\\n`;
     line.wireSize = newSize;
   });
 
@@ -240,6 +252,17 @@ function balancePanel() {
   const output = slotMap.filter(Boolean).join("\n") +
     `\n\nНагрузка: A=${phaseLoad.A}А, B=${phaseLoad.B}А, C=${phaseLoad.C}А\n${unbalance}`;
   result.textContent = output;
+}
+function resetCalculator() {
+  if (confirm("Очистить все данные и начать заново?")) {
+    lines = [];
+    localStorage.removeItem('lines');
+    renderLines();
+    updateSelectors();
+    document.getElementById('derating-result').textContent = "";
+    document.getElementById('voltage-result').textContent = "";
+    document.getElementById('panel-result').textContent = "";
+  }
 }
 
 window.onload = () => {
