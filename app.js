@@ -145,6 +145,16 @@ function showSection(id) {
   document.querySelectorAll('.section').forEach(sec => sec.classList.add('hidden'));
   document.getElementById('section-' + id).classList.remove('hidden');
 }
+function updateNeutral() {
+  const phase = document.querySelector('input[name="phase"]:checked').value;
+  const neutralCheckbox = document.getElementById('line-neutral');
+  if (phase === "1") {
+    neutralCheckbox.checked = true;
+    neutralCheckbox.disabled = true;
+  } else {
+    neutralCheckbox.disabled = false;
+  }
+}
 
 function calculateDerating() {
   const checkboxes = document.querySelectorAll('#derating-lines-list input[type=checkbox]');
@@ -295,4 +305,5 @@ window.onload = () => {
   showSection('lines');
   renderLines();
   updateSelectors();
+   updateNeutral();
 };
