@@ -181,21 +181,25 @@ function updateVoltageDefaults() {
     lengthField.value = "";
   }
 
-  // По умолчанию 110 В
+  // По умолчанию — 110 В
   document.querySelector('input[name="voltage-volts"][value="110"]').checked = true;
 
-  // Отображаем краткую информацию о линии
-  let output = `🔧 Данные линии:\n`;
-  output += `Имя: ${line.name}\n`;
-  output += `Фазы: ${line.phase}\n`;
-  output += `Нейтраль: ${line.neutral ? "есть" : "нет"}\n`;
-  output += `Ампераж: ${line.amps} A\n`;
-  output += `Провод: ${line.wireSize}\n`;
-  output += `Длина: ${line.length ? line.length + " футов" : "укажите длину"}`;
+  // Установить размер провода из линии
+  const overrideSelect = document.getElementById("voltage-override");
+  if (overrideSelect && line.wireSize) {
+    overrideSelect.value = line.wireSize;
+  }
 
-  resultEl.textContent = output;
+  // Лаконичный вывод
+  const phaseText =
+    line.phase === "1" ? "1 фаза" :
+    line.phase === "2" ? "2 фазы" :
+    "3 фазы";
+  const neutralText = line.neutral ? "с нейтралью" : "без нейтрали";
+  resultEl.textContent = `🔧 ${phaseText}, ${neutralText}, ${line.amps}А`;
   resultEl.style.color = "inherit";
 }
+
 
 
 
