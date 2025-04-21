@@ -575,51 +575,75 @@ function exportVisualPanel() {
   let startY = 20;
   const rowHeight = 8;
 
-  const drawn = {}; // отслеживаем уже нарисованные ячейки с rowspan
+  const rows = Array.from(visual.querySelectorAll("tr")).map(row => {
+    const cells = Array.from(row.querySelectorAll("td, th"));
+    return cells.map(cell => ({
+      text: cell.innerText.trim(),
+      colspan: parseInt(cell.getAttribute("colspan") || 1),
+      rowspan: parseInt(cell.getAttribute("rowspan") || 1)
+    }));
+  });
 
-  const rows = Array.from(visual.querySelectorAll("tr"));
+  // Преобразуем в плоскую таблицу с учётом rowspan
+  const normalized = [];
+  const spanMap = {};
 
-  rows.forEach((rowEl, rowIndex) => {
-    let x = startX;
-    const cells = Array.from(rowEl.querySelectorAll("td, th"));
+  for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+    const row = [];
+    let colIdx = 0;
 
-    cells.forEach((cell, colIndex) => {
-      const text = cell.innerText.trim();
-      const colspan = parseInt(cell.getAttribute("colspan") || 1);
-      const rowspan = parseInt(cell.getAttribute("rowspan") || 1);
-
-      const key = `${rowIndex}_${colIndex}`;
-      if (drawn[key]) {
-        x += colWidths[colIndex];
-        return; // эту ячейку уже отрисовали как часть rowspan
+    while (row.length < colWidths.length) {
+      const key = `${rowIdx}_${colIdx}`;
+      if (spanMap[key]) {
+        row.push(spanMap[key]);
+        colIdx++;
+        continue;
       }
 
-      // ширина и высота объединённых ячеек
-      const width = colWidths.slice(colIndex, colIndex + colspan).reduce((a, b) => a + b, 0);
-      const height = rowHeight * rowspan;
+      const cell = rows[rowIdx].shift();
+      if (!cell) break;
 
-      // рисуем
-      doc.rect(x, startY, width, height);
-      if (text) {
-        doc.text(text, x + 1.5, startY + 5);
-      }
+      row.push(cell);
 
-      // помечаем все занятые ячейки как отрисованные
-      for (let r = 0; r < rowspan; r++) {
-        for (let c = 0; c < colspan; c++) {
-          drawn[`${rowIndex + r}_${colIndex + c}`] = true;
+      for (let r = 1; r < cell.rowspan; r++) {
+        for (let c = 0; c < cell.colspan; c++) {
+          const k = `${rowIdx + r}_${colIdx + c}`;
+          spanMap[k] = { ...cell, text: "" };
         }
       }
 
-      x += width;
-    });
+      colIdx += cell.colspan;
+    }
+    normalized.push(row);
+  }
 
-    startY += rowHeight;
+  // Рисуем таблицу
+  for (let row of normalized) {
+    let x = startX;
+    const maxRowspan = Math.max(...row.map(cell => cell.rowspan));
+    const height = rowHeight * maxRowspan;
+
+    row.forEach((cell, i) => {
+      const width = colWidths[i];
+      const colspan = cell.colspan || 1;
+      const rowspan = cell.rowspan || 1;
+
+      const cellWidth = colWidths.slice(i, i + colspan).reduce((a, b) => a + b, 0);
+      const cellHeight = rowHeight * rowspan;
+
+      doc.rect(x, startY, cellWidth, cellHeight);
+      if (cell.text) {
+        doc.text(cell.text, x + 1.5, startY + 5);
+      }
+      x += cellWidth;
+    });
+    startY += height;
+
     if (startY > 280) {
       doc.addPage();
       startY = 20;
     }
-  });
+  }
 
   doc.save("panel_layout.pdf");
 }
