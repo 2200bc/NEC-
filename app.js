@@ -468,10 +468,13 @@ function renderVisualPanel() {
     const label = `${line.name} (${line.amps}A)`;
 
     if (line.phase === "3") {
-      if (panelType === "1") {
-        alert(`Линия "${line.name}" требует трёх фаз, а выбрана однофазная панель.`);
-        continue;
-      }
+  if (panelType === "1") {
+    alert(`Линия "${line.name}" требует трёх фаз. Переключаю панель на трёхфазную.`);
+    document.querySelector('input[name="panel-type"][value="3"]').checked = true;
+    renderVisualPanel(); // перезапускаем отрисовку с новым типом
+    return;
+  }
+
 
       for (let i = 0; i <= slots - 6; i += 2) {
         if (!slotMap[i] && !slotMap[i + 2] && !slotMap[i + 4]) {
