@@ -90,6 +90,62 @@ input, select {
   max-width: 900px;
   margin: 0 auto;
 }
+.amps-length-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-width: 300px;
+}
+
+.phase-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.line-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.line-input-row input[type="text"],
+.line-input-row input[type="number"] {
+  padding: 8px;
+  font-size: 16px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background-color: #222;
+  color: #eee;
+  flex: 1 1 180px;
+  min-width: 180px;
+  box-sizing: border-box;
+}
+
+.line-input-row input[type="checkbox"],
+.line-input-row input[type="radio"] {
+  width: auto;
+  margin-right: 5px;
+}
+
+.line-input-row button {
+  background-color: #00bcd4;
+  color: #000;
+  font-weight: bold;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+
+
+
+
+
 
 /* === МОБИЛЬНАЯ АДАПТАЦИЯ === */
 @media (max-width: 600px) {
