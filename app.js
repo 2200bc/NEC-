@@ -575,72 +575,56 @@ function exportVisualPanel() {
   let startY = 20;
   const rowHeight = 8;
 
-  const rows = Array.from(visual.querySelectorAll("tr")).map(row => {
+  const rows = Array.from(visual.querySelectorAll("tr"));
+  const cellMatrix = [];
+  const maxCols = colWidths.length;
+
+  // Заполняем матрицу ячеек с учётом rowspan и colspan
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+    const row = rows[rowIndex];
     const cells = Array.from(row.querySelectorAll("td, th"));
-    return cells.map(cell => ({
-      text: cell.innerText.trim(),
-      colspan: parseInt(cell.getAttribute("colspan") || 1),
-      rowspan: parseInt(cell.getAttribute("rowspan") || 1)
-    }));
-  });
+    let colIndex = 0;
 
-  // Преобразуем в плоскую таблицу с учётом rowspan
-  const normalized = [];
-  const spanMap = {};
+    if (!cellMatrix[rowIndex]) cellMatrix[rowIndex] = [];
 
-  for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
-    const row = [];
-    let colIdx = 0;
+    for (let cell of cells) {
+      while (cellMatrix[rowIndex][colIndex]) colIndex++;
 
-    while (row.length < colWidths.length) {
-      const key = `${rowIdx}_${colIdx}`;
-      if (spanMap[key]) {
-        row.push(spanMap[key]);
-        colIdx++;
-        continue;
-      }
+      const rowspan = parseInt(cell.getAttribute("rowspan") || 1);
+      const colspan = parseInt(cell.getAttribute("colspan") || 1);
 
-      const cell = rows[rowIdx].shift();
-      if (!cell) break;
-
-      row.push(cell);
-
-      for (let r = 1; r < cell.rowspan; r++) {
-        for (let c = 0; c < cell.colspan; c++) {
-          const k = `${rowIdx + r}_${colIdx + c}`;
-          spanMap[k] = { ...cell, text: "" };
+      for (let r = 0; r < rowspan; r++) {
+        for (let c = 0; c < colspan; c++) {
+          if (!cellMatrix[rowIndex + r]) cellMatrix[rowIndex + r] = [];
+          cellMatrix[rowIndex + r][colIndex + c] = {
+            text: (r === 0 && c === 0) ? cell.innerText.trim() : null,
+            rowspan,
+            colspan
+          };
         }
       }
-
-      colIdx += cell.colspan;
+      colIndex += colspan;
     }
-    normalized.push(row);
   }
 
-  // Рисуем таблицу
-  let visualRow = 0;
-  for (let row of normalized) {
+  // Рисуем
+  for (let row = 0; row < cellMatrix.length; row++) {
     let x = startX;
-    const maxRowspan = Math.max(...row.map(cell => cell.rowspan));
-    const height = rowHeight * maxRowspan;
-
-    row.forEach((cell, i) => {
-      const width = colWidths[i];
-      const colspan = cell.colspan || 1;
-      const rowspan = cell.rowspan || 1;
-
-      const cellWidth = colWidths.slice(i, i + colspan).reduce((a, b) => a + b, 0);
-      const cellHeight = rowHeight * rowspan;
-
-      doc.rect(x, startY, cellWidth, cellHeight);
-      if (cell.text) {
-        doc.text(cell.text, x + 1.5, startY + 5);
+    for (let col = 0; col < maxCols; col++) {
+      const cell = cellMatrix[row][col];
+      if (!cell || cell.text === null) {
+        x += colWidths[col];
+        continue;
       }
-      x += cellWidth;
-    });
+      const width = colWidths.slice(col, col + cell.colspan).reduce((a, b) => a + b, 0);
+      const height = rowHeight * cell.rowspan;
 
-    startY += height;
-    visualRow++;
+      doc.rect(x, startY, width, height);
+      if (cell.text) doc.text(cell.text, x + 1.5, startY + 5);
+
+      x += width;
+    }
+    startY += rowHeight;
     if (startY > 280) {
       doc.addPage();
       startY = 20;
@@ -649,6 +633,22 @@ function exportVisualPanel() {
 
   doc.save("panel_layout.pdf");
 }
+
+// Мобильная поддержка: scroll-x таблицы
+const style = document.createElement('style');
+style.innerHTML = `
+  @media (max-width: 768px) {
+    .panel-table {
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .panel-table td, .panel-table th {
+      white-space: nowrap;
+    }
+  }
+`;
+document.head.appendChild(style);
 
 
 
