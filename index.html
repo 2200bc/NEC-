@@ -131,16 +131,22 @@
 </div>
 
 
-  <div id="section-panel" class="section hidden">
+ <div id="section-panel" class="section hidden">
   <h2>4. Загрузка панели</h2>
   <label><input type="radio" name="panel-type" value="1" checked />1-фазная</label>
   <label><input type="radio" name="panel-type" value="3" />3-фазная</label><br />
   <input id="panel-slots" type="number" placeholder="Слотов в панели" />
-  <button onclick="balancePanel()">Рассчитать</button>
-  <button onclick="exportVisualPanel()">📥 Экспорт панели</button>
+
+  <div class="form-row">
+    <button onclick="balancePanel()">Рассчитать</button>
+    <button onclick="renderVisualPanel()">👁️ Показать визуально</button>
+    <button onclick="exportVisualPanel()">📥 Экспорт панели</button>
+  </div>
+
   <pre id="panel-result"></pre>
   <div id="panel-visual"></div>
 </div>
+
 
 
   <script src="app.js"></script>
