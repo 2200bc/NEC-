@@ -445,17 +445,16 @@ function renderVisualPanel() {
   const table = document.createElement("table");
   table.className = "panel-table";
 
-  const header = `
+  table.innerHTML = `
     <tr>
-      <th class="slot">#</th>
-      <th class="name">Load Served</th>
-      <th class="phase">Phase</th>
-      <th class="phase">Phase</th>
-      <th class="name">Load Served</th>
-      <th class="slot">#</th>
+      <th>#</th>
+      <th>Load Served</th>
+      <th>Phase</th>
+      <th>Phase</th>
+      <th>Load Served</th>
+      <th>#</th>
     </tr>
   `;
-  table.innerHTML = header;
 
   const slotMap = new Array(slots).fill(null);
   let phaseLoad = { A: 0, B: 0, C: 0 };
@@ -470,15 +469,15 @@ function renderVisualPanel() {
 
     if (line.phase === "3") {
       if (panelType === "1") {
-        alert(`Линия "${line.name}" требует трёх фаз, а выбрана однофазная панель. Измени тип панели.`);
+        alert(`Линия "${line.name}" требует трёх фаз, а выбрана однофазная панель.`);
         continue;
       }
 
       for (let i = 0; i <= slots - 6; i += 2) {
         if (!slotMap[i] && !slotMap[i + 2] && !slotMap[i + 4]) {
-          slotMap[i] = { label, type: "3ph", base: i };
-          slotMap[i + 2] = "_SKIP_";
-          slotMap[i + 4] = "_SKIP_";
+          slotMap[i] = { label, phase: "A" };
+          slotMap[i + 2] = { label, phase: "B" };
+          slotMap[i + 4] = { label, phase: "C" };
           phaseLoad.A += line.amps;
           phaseLoad.B += line.amps;
           phaseLoad.C += line.amps;
@@ -488,10 +487,9 @@ function renderVisualPanel() {
     } else if (line.phase === "2") {
       while (pointer <= slots - 2 && (slotMap[pointer] || slotMap[pointer + 1])) pointer += 2;
       if (pointer >= slots - 1) break;
-      const phases = [slotPhase(pointer), slotPhase(pointer + 1)].join('+');
-      slotMap[pointer] = { label, type: "2ph", base: pointer, phases };
-      slotMap[pointer + 1] = "_SKIP_";
       const a = slotPhase(pointer), b = slotPhase(pointer + 1);
+      slotMap[pointer] = { label, phase: a };
+      slotMap[pointer + 1] = { label, phase: b };
       phaseLoad[a] += line.amps;
       phaseLoad[b] += line.amps;
       pointer += 2;
@@ -499,7 +497,7 @@ function renderVisualPanel() {
       while (pointer < slots && slotMap[pointer]) pointer++;
       if (pointer >= slots) break;
       const phase = slotPhase(pointer);
-      slotMap[pointer] = { label, type: "1ph", phase };
+      slotMap[pointer] = { label, phase };
       phaseLoad[phase] += line.amps;
     }
   }
@@ -513,37 +511,20 @@ function renderVisualPanel() {
 
     const row = document.createElement("tr");
 
-    const buildCell = (slot, entry, isRight) => {
-      if (entry === "_SKIP_") return "";
+    const buildCell = (entry, isRight) => {
       if (!entry) return `<td></td><td></td>`;
-
-      if (entry.type === "3ph" && slot === entry.base) {
-        return isRight
-          ? `<td rowspan="3">A+B+C</td><td rowspan="3">${entry.label}</td>`
-          : `<td rowspan="3">${entry.label}</td><td rowspan="3">A+B+C</td>`;
-      }
-      if (entry.type === "2ph" && slot === entry.base) {
-        return isRight
-          ? `<td rowspan="2">${entry.phases}</td><td rowspan="2">${entry.label}</td>`
-          : `<td rowspan="2">${entry.label}</td><td rowspan="2">${entry.phases}</td>`;
-      }
-      if (entry.type === "1ph") {
-        return isRight
-          ? `<td>${entry.phase}</td><td>${entry.label}</td>`
-          : `<td>${entry.label}</td><td>${entry.phase}</td>`;
-      }
-      return `<td></td><td></td>`;
+      return isRight
+        ? `<td>${entry.phase}</td><td>${entry.label}</td>`
+        : `<td>${entry.label}</td><td>${entry.phase}</td>`;
     };
 
-    const leftSlot = `<td>${left + 1}</td>`;
-    const rightSlot = `<td>${right + 1}</td>`;
-
     row.innerHTML = `
-      ${leftSlot}
-      ${buildCell(left, l, false)}
-      ${buildCell(right, r, true)}
-      ${rightSlot}
+      <td>${left + 1}</td>
+      ${buildCell(l, false)}
+      ${buildCell(r, true)}
+      <td>${right + 1}</td>
     `;
+
     table.appendChild(row);
   }
 
@@ -560,6 +541,7 @@ function renderVisualPanel() {
 
 
 
+
 function exportVisualPanel() {
   const { jsPDF } = window.jspdf;
   const visual = document.getElementById("panel-visual");
@@ -570,23 +552,21 @@ function exportVisualPanel() {
   );
 
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  doc.setFont("courier", "normal");
-  doc.setFontSize(9);
+  doc.setFont("helvetica", "");
+  doc.setFontSize(10);
 
-  const colWidths = [10, 55, 20, 20, 55, 10];
+  const colWidths = [10, 70, 15, 15, 70, 10];
   const startX = 10;
   let startY = 20;
-  const rowHeight = 7;
 
   rows.forEach((row) => {
     let x = startX;
+    const rowHeight = 8;
 
-    row.forEach((cell, colIndex) => {
-      doc.rect(x, startY, colWidths[colIndex], rowHeight);
-      const textX = x + colWidths[colIndex] / 2;
-      const textY = startY + rowHeight / 2 + 2;
-      doc.text(cell, textX, textY, { align: "center" });
-      x += colWidths[colIndex];
+    row.forEach((cell, i) => {
+      doc.rect(x, startY, colWidths[i], rowHeight);
+      doc.text(cell, x + 1.5, startY + 5);
+      x += colWidths[i];
     });
 
     startY += rowHeight;
