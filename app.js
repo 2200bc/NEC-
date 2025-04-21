@@ -162,6 +162,19 @@ function updateSelectors() {
     vSel.appendChild(opt);
   });
 }
+function updateVoltageDefaults() {
+  const index = document.getElementById("voltage-line").value;
+  const line = lines[index];
+  if (!line) return;
+
+  // Автозаполнение длины
+  if (line.length) {
+    document.getElementById("voltage-length").value = line.length;
+  }
+
+  // По умолчанию напряжение — 110 В
+  document.querySelector('input[name="voltage-volts"][value="110"]').checked = true;
+}
 
 
 function showSection(id) {
