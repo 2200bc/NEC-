@@ -462,25 +462,23 @@ function renderVisualPanel() {
   const slotPhase = slot => ['A', 'B', 'C'][Math.floor(slot / 2) % 3];
 
   const sorted = [...lines].sort((a, b) => b.amps - a.amps);
-
   let pointer = 0;
+
   for (const line of sorted) {
     const label = `${line.name} (${line.amps}A)`;
 
     if (line.phase === "3") {
-  if (panelType === "1") {
-    alert(`Линия "${line.name}" требует трёх фаз. Переключаю панель на трёхфазную.`);
-    document.querySelector('input[name="panel-type"][value="3"]').checked = true;
-    renderVisualPanel(); // перезапускаем отрисовку с новым типом
-    return;
-  }
-
-
+      if (panelType === "1") {
+        alert(`Линия "${line.name}" требует трёх фаз, переключаю на 3-фазную панель`);
+        document.querySelector('input[name="panel-type"][value="3"]').checked = true;
+        renderVisualPanel();
+        return;
+      }
       for (let i = 0; i <= slots - 6; i += 2) {
         if (!slotMap[i] && !slotMap[i + 2] && !slotMap[i + 4]) {
-          slotMap[i] = { label, phase: "A" };
-          slotMap[i + 2] = { label, phase: "B" };
-          slotMap[i + 4] = { label, phase: "C" };
+          slotMap[i] = { label, type: "3ph", base: i };
+          slotMap[i + 2] = "_SKIP_";
+          slotMap[i + 4] = "_SKIP_";
           phaseLoad.A += line.amps;
           phaseLoad.B += line.amps;
           phaseLoad.C += line.amps;
@@ -491,8 +489,8 @@ function renderVisualPanel() {
       while (pointer <= slots - 2 && (slotMap[pointer] || slotMap[pointer + 1])) pointer += 2;
       if (pointer >= slots - 1) break;
       const a = slotPhase(pointer), b = slotPhase(pointer + 1);
-      slotMap[pointer] = { label, phase: a };
-      slotMap[pointer + 1] = { label, phase: b };
+      slotMap[pointer] = { label, type: "2ph", base: pointer, phases: `${a}+${b}` };
+      slotMap[pointer + 1] = "_SKIP_";
       phaseLoad[a] += line.amps;
       phaseLoad[b] += line.amps;
       pointer += 2;
@@ -500,7 +498,7 @@ function renderVisualPanel() {
       while (pointer < slots && slotMap[pointer]) pointer++;
       if (pointer >= slots) break;
       const phase = slotPhase(pointer);
-      slotMap[pointer] = { label, phase };
+      slotMap[pointer] = { label, type: "1ph", phase };
       phaseLoad[phase] += line.amps;
     }
   }
@@ -514,17 +512,35 @@ function renderVisualPanel() {
 
     const row = document.createElement("tr");
 
-    const buildCell = (entry, isRight) => {
+    const buildCell = (slot, entry, isRight) => {
+      if (entry === "_SKIP_") return "";
       if (!entry) return `<td></td><td></td>`;
-      return isRight
-        ? `<td>${entry.phase}</td><td>${entry.label}</td>`
-        : `<td>${entry.label}</td><td>${entry.phase}</td>`;
+
+      if (entry.type === "3ph" && slot === entry.base) {
+        return isRight
+          ? `<td rowspan="3">A+B+C</td><td rowspan="3">${entry.label}</td>`
+          : `<td rowspan="3">${entry.label}</td><td rowspan="3">A+B+C</td>`;
+      }
+
+      if (entry.type === "2ph" && slot === entry.base) {
+        return isRight
+          ? `<td rowspan="2">${entry.phases}</td><td rowspan="2">${entry.label}</td>`
+          : `<td rowspan="2">${entry.label}</td><td rowspan="2">${entry.phases}</td>`;
+      }
+
+      if (entry.type === "1ph") {
+        return isRight
+          ? `<td>${entry.phase}</td><td>${entry.label}</td>`
+          : `<td>${entry.label}</td><td>${entry.phase}</td>`;
+      }
+
+      return `<td></td><td></td>`;
     };
 
     row.innerHTML = `
       <td>${left + 1}</td>
-      ${buildCell(l, false)}
-      ${buildCell(r, true)}
+      ${buildCell(left, l, false)}
+      ${buildCell(right, r, true)}
       <td>${right + 1}</td>
     `;
 
