@@ -35,3 +35,51 @@ input, select {
 .checkbox-list input[type="checkbox"] {
   margin-right: 6px;
 }
+
+
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.form-row button {
+  flex: 1;
+  min-width: 160px;
+  background-color: #333;
+  color: #f0f0f0;
+  border: 1px solid #555;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+
+.form-row button:hover {
+  background-color: #444;
+}
+
+input[type="number"] {
+  width: 100%;
+  max-width: 300px;
+}
+
+.panel-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  background-color: #222;
+  color: #f0f0f0;
+}
+
+.panel-table th, .panel-table td {
+  border: 1px solid #444;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.footer-row td {
+  font-weight: bold;
+  background-color: #2a2a2a;
+}
