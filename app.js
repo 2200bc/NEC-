@@ -64,16 +64,22 @@ const conduitFillTable = {
 
 function getWireSize(amps) {
   for (let i = 0; i < wireAmpacityTable.length; i++) {
-    if (amps <= wireAmpacityTable[i].ampacity) return wireAmpacityTable[i].size;
+    const wire = wireAmpacityTable[i];
+    if (wire.size === "14 AWG") continue; // Исключаем 14 AWG
+    if (amps <= wire.ampacity) return wire.size;
   }
   return "больше 1000 MCM";
 }
+
 function getWireSizeDerated(amps) {
   for (let i = 0; i < wireAmpacityTable90C.length; i++) {
-    if (amps <= wireAmpacityTable90C[i].ampacity) return wireAmpacityTable90C[i].size;
+    const wire = wireAmpacityTable90C[i];
+    if (wire.size === "14 AWG") continue; // Исключаем 14 AWG
+    if (amps <= wire.ampacity) return wire.size;
   }
   return "больше 1000 MCM";
 }
+
 
 function getWireArea(size) {
   const entry = wireAmpacityTable.find(e => e.size === size);
