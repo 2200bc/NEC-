@@ -1,37 +1,157 @@
+/* === ОБЩАЯ ТЁМНАЯ ТЕМА === */
 body {
-  font-family: sans-serif;
-  background: #1a1a1a;
-  color: #f0f0f0;
+  margin: 0;
   padding: 20px;
-}
-button {
-  margin: 5px;
-  padding: 10px;
-  font-size: 16px;
-}
-input, select {
-  margin: 5px;
-  padding: 8px;
-  font-size: 16px;
-}
-.section {
-  margin-top: 20px;
-}
-.hidden {
-  display: none;
-}
-.menu button {
-  display: block;
-  width: 100%;
-  margin-bottom: 10px;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  background-color: #121212;
+  color: #e0e0e0;
 }
 
-.checkbox-list label {
-  display: block;
-  margin: 4px 0;
-  cursor: pointer;
-  font-family: sans-serif;
+/* === ЗАГОЛОВКИ И МЕНЮ === */
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 28px;
+  color: #ffffff;
 }
-.checkbox-list input[type="checkbox"] {
-  margin-right: 6px;
+
+.menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+.menu button {
+  background-color: #1f1f1f;
+  color: #fff;
+  border: 1px solid #333;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.menu button:hover {
+  background-color: #333;
+}
+
+/* === СЕКЦИИ === */
+.section {
+  display: none;
+  padding: 20px;
+  background-color: #1c1c1c;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.section:not(.hidden) {
+  display: block;
+}
+
+/* === ВВОД ДАННЫХ === */
+.line-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.line-input-row input,
+.line-input-row button,
+.line-input-row label,
+select {
+  font-size: 16px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background-color: #222;
+  color: #eee;
+  min-width: 100px;
+  box-sizing: border-box;
+}
+
+.line-input-row input:focus,
+.line-input-row select:focus {
+  border-color: #00bcd4;
+  outline: none;
+}
+
+.line-input-row button {
+  background-color: #00bcd4;
+  color: black;
+  border: none;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+.line-input-row button:hover {
+  background-color: #00a6b2;
+}
+
+/* === СПИСОК ЛИНИЙ === */
+#line-list {
+  margin-top: 10px;
+}
+
+#line-list div {
+  background-color: #292929;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#line-list button {
+  padding: 4px 10px;
+  background-color: #444;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+}
+
+#line-list button:hover {
+  background-color: #666;
+}
+
+/* === РЕЗУЛЬТАТЫ === */
+#derating-result,
+#voltage-result,
+#panel-result {
+  white-space: pre-line;
+  margin-top: 15px;
+  background-color: #1a1a1a;
+  padding: 10px;
+  border-radius: 6px;
+  border-left: 4px solid #00bcd4;
+}
+
+/* === АДАПТИВНОСТЬ === */
+@media (max-width: 600px) {
+  .line-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .menu {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .menu button {
+    width: 100%;
+  }
+
+  #line-list div {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  #line-list button {
+    margin-top: 8px;
+    align-self: flex-end;
+  }
 }
