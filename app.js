@@ -561,7 +561,7 @@ function renderVisualPanel() {
 
 
 function exportVisualPanel() {
-  const { jsPDF } = window.jspdf; // <-- обязательно для UMD версии
+  const { jsPDF } = window.jspdf;
   const visual = document.getElementById("panel-visual");
   if (!visual) return alert("Нет данных для экспорта");
 
@@ -570,21 +570,23 @@ function exportVisualPanel() {
   );
 
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  doc.setFont("helvetica", "");
-  doc.setFontSize(10);
+  doc.setFont("courier", "normal");
+  doc.setFontSize(9);
 
-  const colWidths = [10, 80, 20, 20, 80, 10]; // Обновлённые под перестановку
+  const colWidths = [10, 55, 20, 20, 55, 10];
   const startX = 10;
   let startY = 20;
+  const rowHeight = 7;
 
   rows.forEach((row) => {
     let x = startX;
-    const rowHeight = 8;
 
-    row.forEach((cell, i) => {
-      doc.rect(x, startY, colWidths[i], rowHeight);
-      doc.text(cell, x + 1.5, startY + 5);
-      x += colWidths[i];
+    row.forEach((cell, colIndex) => {
+      doc.rect(x, startY, colWidths[colIndex], rowHeight);
+      const textX = x + colWidths[colIndex] / 2;
+      const textY = startY + rowHeight / 2 + 2;
+      doc.text(cell, textX, textY, { align: "center" });
+      x += colWidths[colIndex];
     });
 
     startY += rowHeight;
