@@ -331,5 +331,9 @@ window.onload = () => {
   showSection('lines');
   renderLines();
   updateSelectors();
-   updateNeutral();
+  updateNeutral();
+
+  document.querySelectorAll('input[name="phase"]').forEach(radio => {
+    radio.addEventListener('change', updateNeutral);
+  });
 };
