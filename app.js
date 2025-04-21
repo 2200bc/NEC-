@@ -147,6 +147,11 @@ function updateSelectors() {
   const vSel = document.getElementById('voltage-line');
   derList.innerHTML = "";
   vSel.innerHTML = "";
+
+  // Добавляем дефолтный пункт
+  const defaultOption = new Option("Выберите линию", "");
+  vSel.appendChild(defaultOption);
+
   lines.forEach((line, i) => {
     const label = document.createElement("label");
     const checkbox = document.createElement("input");
@@ -163,6 +168,7 @@ function updateSelectors() {
     vSel.appendChild(opt);
   });
 }
+
 function updateVoltageDefaults() {
   const index = document.getElementById("voltage-line").value;
   const line = lines[index];
