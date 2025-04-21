@@ -1,4 +1,4 @@
-/* === ОБЩИЙ ФОН И ШРИФТ === */
+/* === ОБЩИЕ СТИЛИ === */
 body {
   background-color: #111;
   color: #e0e0e0;
@@ -7,15 +7,23 @@ body {
   padding: 20px;
 }
 
-/* === ЗАГОЛОВОК === */
 h1 {
   text-align: center;
-  font-size: 26px;
+  font-size: 28px;
   margin-bottom: 20px;
   color: #fff;
 }
 
-/* === МЕНЮ КНОПОК === */
+button {
+  cursor: pointer;
+  border: none;
+}
+
+input, select {
+  box-sizing: border-box;
+}
+
+/* === МЕНЮ === */
 .menu {
   display: flex;
   flex-wrap: wrap;
@@ -28,9 +36,8 @@ h1 {
   background-color: #222;
   color: #eee;
   border: 1px solid #333;
-  padding: 10px 18px;
+  padding: 10px 20px;
   border-radius: 10px;
-  cursor: pointer;
   transition: background 0.2s;
 }
 
@@ -52,47 +59,45 @@ h1 {
   display: block;
 }
 
-/* === ВВОДНЫЕ ПОЛЯ === */
+/* === СТРОКА ВВОДА === */
 .line-input-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 16px;
   align-items: center;
+  margin-bottom: 16px;
 }
 
 .line-input-row input,
-.line-input-row select,
-.line-input-row button,
-.line-input-row label {
+.line-input-row select {
   font-size: 16px;
-  padding: 8px;
-  border: 1px solid #444;
+  padding: 6px 10px;
   border-radius: 8px;
   background-color: #222;
   color: #eee;
-  box-sizing: border-box;
+  border: 1px solid #444;
 }
 
 .line-input-row input[type="radio"],
 .line-input-row input[type="checkbox"] {
   width: auto;
-  padding: 0;
   margin-right: 4px;
+  padding: 0;
 }
 
 .line-input-row button {
   background-color: #00bcd4;
   color: black;
   font-weight: bold;
-  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
 }
 
 .line-input-row button:hover {
   background-color: #00a6b2;
 }
 
-/* === СПИСОК ЛИНИЙ === */
+/* === ЛИСТ ЛИНИЙ === */
 #line-list div {
   background-color: #2a2a2a;
   padding: 10px;
@@ -105,18 +110,16 @@ h1 {
 
 #line-list button {
   padding: 6px 10px;
-  border: none;
   background-color: #555;
   color: white;
   border-radius: 6px;
-  cursor: pointer;
 }
 
 #line-list button:hover {
   background-color: #777;
 }
 
-/* === ВЫВОД РЕЗУЛЬТАТОВ === */
+/* === РЕЗУЛЬТАТЫ === */
 #derating-result,
 #voltage-result,
 #panel-result {
@@ -129,13 +132,8 @@ h1 {
   box-shadow: 0 0 6px #00000040;
 }
 
-/* === МЕДИА АДАПТАЦИЯ === */
+/* === МЕДИА === */
 @media (max-width: 600px) {
-  .line-input-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   .menu {
     flex-direction: column;
     gap: 8px;
@@ -145,13 +143,18 @@ h1 {
     width: 100%;
   }
 
+  .line-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   #line-list div {
     flex-direction: column;
     align-items: flex-start;
   }
 
   #line-list button {
-    margin-top: 8px;
     align-self: flex-end;
+    margin-top: 8px;
   }
 }
