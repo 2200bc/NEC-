@@ -436,6 +436,7 @@ function importData() {
 
 function renderVisualPanel() {
   const slots = parseInt(document.getElementById("panel-slots").value);
+  const panelType = document.querySelector('input[name="panel-type"]:checked').value;
   if (!slots || slots < 6 || slots % 2 !== 0) return alert("Слотов должно быть чётное число, минимум 6");
 
   const container = document.getElementById("panel-visual");
@@ -449,8 +450,8 @@ function renderVisualPanel() {
       <th class="slot">#</th>
       <th class="name">Load Served</th>
       <th class="phase">Phase</th>
-      <th class="name">Load Served</th>
       <th class="phase">Phase</th>
+      <th class="name">Load Served</th>
       <th class="slot">#</th>
     </tr>
   `;
@@ -468,6 +469,11 @@ function renderVisualPanel() {
     const label = `${line.name} (${line.amps}A)`;
 
     if (line.phase === "3") {
+      if (panelType === "1") {
+        alert(`Линия "${line.name}" требует трёх фаз, а выбрана однофазная панель. Измени тип панели.`);
+        continue;
+      }
+
       for (let i = 0; i <= slots - 6; i += 2) {
         if (!slotMap[i] && !slotMap[i + 2] && !slotMap[i + 4]) {
           slotMap[i] = { label, type: "3ph", base: i };
@@ -507,18 +513,24 @@ function renderVisualPanel() {
 
     const row = document.createElement("tr");
 
-    const buildCell = (slot, entry) => {
+    const buildCell = (slot, entry, isRight) => {
       if (entry === "_SKIP_") return "";
       if (!entry) return `<td></td><td></td>`;
 
       if (entry.type === "3ph" && slot === entry.base) {
-        return `<td rowspan="3">${entry.label}</td><td rowspan="3">A+B+C</td>`;
+        return isRight
+          ? `<td rowspan="3">A+B+C</td><td rowspan="3">${entry.label}</td>`
+          : `<td rowspan="3">${entry.label}</td><td rowspan="3">A+B+C</td>`;
       }
       if (entry.type === "2ph" && slot === entry.base) {
-        return `<td rowspan="2">${entry.label}</td><td rowspan="2">${entry.phases}</td>`;
+        return isRight
+          ? `<td rowspan="2">${entry.phases}</td><td rowspan="2">${entry.label}</td>`
+          : `<td rowspan="2">${entry.label}</td><td rowspan="2">${entry.phases}</td>`;
       }
       if (entry.type === "1ph") {
-        return `<td>${entry.label}</td><td>${entry.phase}</td>`;
+        return isRight
+          ? `<td>${entry.phase}</td><td>${entry.label}</td>`
+          : `<td>${entry.label}</td><td>${entry.phase}</td>`;
       }
       return `<td></td><td></td>`;
     };
@@ -528,8 +540,8 @@ function renderVisualPanel() {
 
     row.innerHTML = `
       ${leftSlot}
-      ${buildCell(left, l)}
-      ${buildCell(right, r)}
+      ${buildCell(left, l, false)}
+      ${buildCell(right, r, true)}
       ${rightSlot}
     `;
     table.appendChild(row);
@@ -549,6 +561,7 @@ function renderVisualPanel() {
 
 
 function exportVisualPanel() {
+  const { jsPDF } = window.jspdf; // <-- обязательно для UMD версии
   const visual = document.getElementById("panel-visual");
   if (!visual) return alert("Нет данных для экспорта");
 
@@ -560,11 +573,11 @@ function exportVisualPanel() {
   doc.setFont("helvetica", "");
   doc.setFontSize(10);
 
-  const colWidths = [10, 80, 20, 80, 20, 10];
+  const colWidths = [10, 80, 20, 20, 80, 10]; // Обновлённые под перестановку
   const startX = 10;
   let startY = 20;
 
-  rows.forEach((row, rowIndex) => {
+  rows.forEach((row) => {
     let x = startX;
     const rowHeight = 8;
 
@@ -575,10 +588,15 @@ function exportVisualPanel() {
     });
 
     startY += rowHeight;
+    if (startY > 280) {
+      doc.addPage();
+      startY = 20;
+    }
   });
 
   doc.save("panel_layout.pdf");
 }
+
 
 window.onload = () => {
   showSection('lines');
