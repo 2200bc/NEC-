@@ -618,6 +618,7 @@ function exportVisualPanel() {
   }
 
   // Рисуем таблицу
+  let visualRow = 0;
   for (let row of normalized) {
     let x = startX;
     const maxRowspan = Math.max(...row.map(cell => cell.rowspan));
@@ -637,8 +638,9 @@ function exportVisualPanel() {
       }
       x += cellWidth;
     });
-    startY += height;
 
+    startY += height;
+    visualRow++;
     if (startY > 280) {
       doc.addPage();
       startY = 20;
@@ -647,6 +649,7 @@ function exportVisualPanel() {
 
   doc.save("panel_layout.pdf");
 }
+
 
 
 
