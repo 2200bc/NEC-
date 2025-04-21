@@ -109,6 +109,7 @@ function addLine() {
   document.getElementById('line-length').value = '';
   document.querySelector('input[name="phase"][value="1"]').checked = true;
   document.getElementById('line-neutral').checked = false;
+  updateNeutral();
 }
 
 
