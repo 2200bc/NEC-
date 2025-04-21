@@ -566,10 +566,6 @@ function exportVisualPanel() {
   const visual = document.getElementById("panel-visual");
   if (!visual) return alert("Нет данных для экспорта");
 
-  const rows = Array.from(visual.querySelectorAll("tr")).map(row =>
-    Array.from(row.querySelectorAll("td, th")).map(cell => cell.innerText.trim())
-  );
-
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   doc.setFont("helvetica", "");
   doc.setFontSize(10);
@@ -577,15 +573,45 @@ function exportVisualPanel() {
   const colWidths = [10, 70, 15, 15, 70, 10];
   const startX = 10;
   let startY = 20;
+  const rowHeight = 8;
 
-  rows.forEach((row) => {
+  const drawn = {}; // отслеживаем уже нарисованные ячейки с rowspan
+
+  const rows = Array.from(visual.querySelectorAll("tr"));
+
+  rows.forEach((rowEl, rowIndex) => {
     let x = startX;
-    const rowHeight = 8;
+    const cells = Array.from(rowEl.querySelectorAll("td, th"));
 
-    row.forEach((cell, i) => {
-      doc.rect(x, startY, colWidths[i], rowHeight);
-      doc.text(cell, x + 1.5, startY + 5);
-      x += colWidths[i];
+    cells.forEach((cell, colIndex) => {
+      const text = cell.innerText.trim();
+      const colspan = parseInt(cell.getAttribute("colspan") || 1);
+      const rowspan = parseInt(cell.getAttribute("rowspan") || 1);
+
+      const key = `${rowIndex}_${colIndex}`;
+      if (drawn[key]) {
+        x += colWidths[colIndex];
+        return; // эту ячейку уже отрисовали как часть rowspan
+      }
+
+      // ширина и высота объединённых ячеек
+      const width = colWidths.slice(colIndex, colIndex + colspan).reduce((a, b) => a + b, 0);
+      const height = rowHeight * rowspan;
+
+      // рисуем
+      doc.rect(x, startY, width, height);
+      if (text) {
+        doc.text(text, x + 1.5, startY + 5);
+      }
+
+      // помечаем все занятые ячейки как отрисованные
+      for (let r = 0; r < rowspan; r++) {
+        for (let c = 0; c < colspan; c++) {
+          drawn[`${rowIndex + r}_${colIndex + c}`] = true;
+        }
+      }
+
+      x += width;
     });
 
     startY += rowHeight;
@@ -597,6 +623,7 @@ function exportVisualPanel() {
 
   doc.save("panel_layout.pdf");
 }
+
 
 
 window.onload = () => {
