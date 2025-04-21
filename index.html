@@ -20,14 +20,18 @@
 <body>
   <h1>NEC Калькулятор</h1>
   <div class="menu">
-    <button onclick="showSection('lines')">1. Подбор проводов</button>
-    <button onclick="showSection('derating')">2. Дирейтинг</button>
-    <button onclick="showSection('voltage')">3. Падение напряжения</button>
-    <button onclick="showSection('panel')">4. Загрузка панели</button>
-    <button onclick="exportData()">📤 Экспорт</button>
-    <input type="file" onchange="importData(event)" />
-    <button onclick="resetCalculator()">♻️ Новый расчёт</button>
-  </div>
+  <button onclick="showSection('lines')">1. Подбор проводов</button>
+  <button onclick="showSection('derating')">2. Дирейтинг</button>
+  <button onclick="showSection('voltage')">3. Падение напряжения</button>
+  <button onclick="showSection('panel')">4. Загрузка панели</button>
+  <button onclick="exportData()">📤 Экспорт</button>
+
+  <input type="file" id="import-file" style="display: none" accept=".json" onchange="importData()" />
+  <button onclick="document.getElementById('import-file').click()">📂 Импорт</button>
+
+  <button onclick="resetCalculator()">♻️ Новый расчёт</button>
+</div>
+
 
   <div id="section-lines" class="section">
     <h2>1. Подбор проводов</h2>
