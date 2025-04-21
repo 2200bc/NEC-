@@ -552,49 +552,33 @@ function exportVisualPanel() {
   const visual = document.getElementById("panel-visual");
   if (!visual) return alert("Нет данных для экспорта");
 
-  const blob = new Blob(
-    [
-      `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Panel Layout</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; }
-    .panel-table {
-      border-collapse: collapse;
-      width: 100%;
-    }
-    .panel-table th, .panel-table td {
-      border: 1px solid #444;
-      padding: 6px;
-      text-align: left;
-    }
-    .footer-row td {
-      font-weight: bold;
-      background: #f0f0f0;
-    }
-  </style>
-</head>
-<body>
-  <h2>Panel Layout</h2>
-  ${visual.innerHTML}
-</body>
-</html>`
-    ],
-    { type: "text/html" }
+  const rows = Array.from(visual.querySelectorAll("tr")).map(row =>
+    Array.from(row.querySelectorAll("td, th")).map(cell => cell.innerText.trim())
   );
 
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "panel_layout.html";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  doc.setFont("helvetica", "");
+  doc.setFontSize(10);
 
+  const colWidths = [10, 80, 20, 80, 20, 10];
+  const startX = 10;
+  let startY = 20;
+
+  rows.forEach((row, rowIndex) => {
+    let x = startX;
+    const rowHeight = 8;
+
+    row.forEach((cell, i) => {
+      doc.rect(x, startY, colWidths[i], rowHeight);
+      doc.text(cell, x + 1.5, startY + 5);
+      x += colWidths[i];
+    });
+
+    startY += rowHeight;
+  });
+
+  doc.save("panel_layout.pdf");
+}
 
 window.onload = () => {
   showSection('lines');
