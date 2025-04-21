@@ -70,11 +70,13 @@
     <pre id="derating-result"></pre>
   </div>
 
-  <div id="section-voltage" class="section hidden">
+ <div id="section-voltage" class="section hidden">
   <h2>3. Падение напряжения</h2>
 
   <label>Линия:
-    <select id="voltage-line" onchange="updateVoltageDefaults()"></select>
+    <select id="voltage-line" onchange="updateVoltageDefaults()">
+      <option value="">Выберите линию</option>
+    </select>
   </label><br />
 
   <label>Материал:
@@ -90,6 +92,35 @@
     <label><input type="radio" name="voltage-volts" value="110" checked /> 110 В</label>
     <label><input type="radio" name="voltage-volts" value="208" /> 208 В</label>
   </div>
+
+  <label>Размер провода:
+    <select id="voltage-override">
+      <option value="">(из данных линии)</option>
+      <option value="12 AWG">12 AWG</option>
+      <option value="10 AWG">10 AWG</option>
+      <option value="8 AWG">8 AWG</option>
+      <option value="6 AWG">6 AWG</option>
+      <option value="4 AWG">4 AWG</option>
+      <option value="3 AWG">3 AWG</option>
+      <option value="2 AWG">2 AWG</option>
+      <option value="1 AWG">1 AWG</option>
+      <option value="1/0">1/0</option>
+      <option value="2/0">2/0</option>
+      <option value="3/0">3/0</option>
+      <option value="4/0">4/0</option>
+      <option value="250 MCM">250 MCM</option>
+      <option value="300 MCM">300 MCM</option>
+      <option value="350 MCM">350 MCM</option>
+      <option value="400 MCM">400 MCM</option>
+      <option value="500 MCM">500 MCM</option>
+      <option value="600 MCM">600 MCM</option>
+      <option value="700 MCM">700 MCM</option>
+      <option value="750 MCM">750 MCM</option>
+      <option value="800 MCM">800 MCM</option>
+      <option value="900 MCM">900 MCM</option>
+      <option value="1000 MCM">1000 MCM</option>
+    </select>
+  </label><br />
 
   <button onclick="calculateVoltageDrop()">Рассчитать</button>
   <pre id="voltage-result"></pre>
