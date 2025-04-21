@@ -411,6 +411,29 @@ function exportData() {
   URL.revokeObjectURL(url);
 }
 
+function importData() {
+  const input = document.getElementById("import-file");
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data)) throw new Error("Неверный формат файла");
+
+      lines = data;
+      localStorage.setItem('lines', JSON.stringify(lines));
+      renderLines();
+      updateSelectors();
+      alert("Импорт завершён");
+    } catch (err) {
+      alert("Ошибка при импорте: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
 window.onload = () => {
   showSection('lines');
   renderLines();
