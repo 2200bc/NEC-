@@ -165,16 +165,37 @@ function updateSelectors() {
 function updateVoltageDefaults() {
   const index = document.getElementById("voltage-line").value;
   const line = lines[index];
-  if (!line) return;
+  const resultEl = document.getElementById("voltage-result");
 
-  // Автозаполнение длины
-  if (line.length) {
-    document.getElementById("voltage-length").value = line.length;
+  if (!line) {
+    resultEl.textContent = "";
+    return;
   }
 
-  // По умолчанию напряжение — 110 В
+  // Подставить длину, если есть
+  const lengthField = document.getElementById("voltage-length");
+  if (line.length) {
+    lengthField.value = line.length;
+  } else {
+    lengthField.value = "";
+  }
+
+  // По умолчанию 110 В
   document.querySelector('input[name="voltage-volts"][value="110"]').checked = true;
+
+  // Отображаем краткую информацию о линии
+  let output = `🔧 Данные линии:\n`;
+  output += `Имя: ${line.name}\n`;
+  output += `Фазы: ${line.phase}\n`;
+  output += `Нейтраль: ${line.neutral ? "есть" : "нет"}\n`;
+  output += `Ампераж: ${line.amps} A\n`;
+  output += `Провод: ${line.wireSize}\n`;
+  output += `Длина: ${line.length ? line.length + " футов" : "укажите длину"}`;
+
+  resultEl.textContent = output;
+  resultEl.style.color = "inherit";
 }
+
 
 
 function showSection(id) {
