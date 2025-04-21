@@ -35,3 +35,16 @@ input, select {
 .checkbox-list input[type="checkbox"] {
   margin-right: 6px;
 }
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.form-row input,
+.form-row label,
+.form-row button {
+  flex: 1 1 auto;
+  min-width: 100px;
+}
