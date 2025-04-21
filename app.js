@@ -270,43 +270,59 @@ function calculateVoltageDrop() {
   if (isNaN(length)) length = line.length;
   if (!length) return alert("Укажи длину — в поле или при создании линии");
 
-  const volts = parseFloat(document.querySelector('input[name="voltage-volts"]:checked').value);
+  const volts = parseFloat(document.querySelector('input[name="voltage-volts"]:checked')?.value);
   if (!volts) return alert("Укажи напряжение");
 
-  const is3Phase = line.phase === "3";
+  const is3Phase = parseInt(line.phase) === 3;
   const resistivity = material === "copper" ? 12.9 : 21.2;
-  const cma = wireAmpacityTable.find(w => w.size === line.wireSize)?.cma || 1000;
 
-  // множитель: √3 — только для 3 фаз, иначе 2
+  const override = document.getElementById("voltage-override").value;
+  const wireSize = override || line.wireSize;
+  const cma = wireAmpacityTable.find(w => w.size === wireSize)?.cma || 1000;
+
   const multiplier = is3Phase ? Math.sqrt(3) : 2;
   const VD = (multiplier * length * resistivity * line.amps) / cma;
   const percent = ((VD / volts) * 100).toFixed(2);
 
   const resultEl = document.getElementById("voltage-result");
-  let output = `🔧 Линия: ${line.name}\n`;
-  output += `Фазы: ${line.phase}, ${line.neutral ? "с нейтралью" : "без нейтрали"}\n`;
-  output += `Материал: ${material}, Длина: ${length} футов\n`;
-  output += `Ампераж: ${line.amps} A, Провод: ${line.wireSize}\n`;
-  output += `Напряжение: ${volts} В\n`;
+  let output = "";
 
+  // 1. ДАННЫЕ
+  const phaseText =
+    line.phase === "1" ? "1 фаза" :
+    line.phase === "2" ? "2 фазы" :
+    "3 фазы";
+  const neutralText = line.neutral ? "с нейтралью" : "без нейтрали";
+  output += `🔧 ${phaseText}, ${neutralText}, ${line.amps}А\n`;
+
+  // 2. ФОРМУЛА
   output += `\n📐 Формула:\n`;
-  if (is3Phase) {
-    output += `VD = √3 × L × R × I / CMA\n`;
-  } else {
-    output += `VD = 2 × L × R × I / CMA\n`;
-  }
+  output += is3Phase
+    ? `VD = √3 × L × R × I / CMA\n`
+    : `VD = 2 × L × R × I / CMA\n`;
 
+  // 3. РЕЗУЛЬТАТ
   output += `\n→ Падение напряжения: ${VD.toFixed(2)} В (${percent}%)`;
 
   if (percent > 3) {
     resultEl.style.color = "red";
     output += `\n⚠️ Превышение допустимого 3% по NEC!`;
+
+    const recommended = wireAmpacityTable.find(w =>
+      (multiplier * length * resistivity * line.amps) / w.cma / volts < 0.03
+    );
+    if (recommended) {
+      output += `\n💡 Рекомендуемый размер: ${recommended.size}`;
+    } else {
+      output += `\n❗ Невозможно подобрать провод в пределах 3%`;
+    }
   } else {
     resultEl.style.color = "inherit";
   }
 
   resultEl.textContent = output;
 }
+
 
 
 
