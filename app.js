@@ -80,14 +80,19 @@ function getWireArea(size) {
   return entry ? entry.area : 0.01;
 }
 function addLine() {
-  const name = document.getElementById('line-name').value;
+  const name = document.getElementById('line-name').value.trim();
   const amps = parseFloat(document.getElementById('line-amps').value);
+  const length = parseFloat(document.getElementById('line-length').value);
   const phase = document.querySelector('input[name="phase"]:checked').value;
   const neutral = document.getElementById('line-neutral').checked;
-  if (!name || !amps) return alert("Заполни все поля");
+
+  if (!name || isNaN(amps)) return alert("Заполни имя и ампераж");
 
   const wireSize = getWireSize(amps);
   const line = { name, amps, phase, neutral, wireSize };
+
+  if (!isNaN(length)) line.length = length;
+
   lines.push(line);
   localStorage.setItem('lines', JSON.stringify(lines));
   renderLines();
@@ -95,9 +100,12 @@ function addLine() {
 
   document.getElementById('line-name').value = '';
   document.getElementById('line-amps').value = '';
+  document.getElementById('line-length').value = '';
   document.querySelector('input[name="phase"][value="1"]').checked = true;
   document.getElementById('line-neutral').checked = false;
 }
+
+
 
 function deleteLine(index) {
   if (!confirm("Удалить линию?")) return;
@@ -116,12 +124,14 @@ function renderLines() {
       line.phase === "2" ? "2 фазы" :
       "3 фазы";
     const neutralText = line.neutral ? ", с нейтралью" : "";
+    const lengthText = line.length ? `, ${line.length}ft` : "";
     const div = document.createElement("div");
-    div.innerHTML = `${line.name}: ${line.amps}А, ${phaseText}${neutralText} → ${line.wireSize}
+    div.innerHTML = `${line.name}: ${line.amps}А, ${phaseText}${neutralText}${lengthText} → ${line.wireSize}
       <button onclick="deleteLine(${i})">Удалить</button>`;
     container.appendChild(div);
   });
 }
+
 
 
 
@@ -207,10 +217,15 @@ function calculateDerating() {
 
 function calculateVoltageDrop() {
   const index = document.getElementById("voltage-line").value;
+  if (!lines[index]) return alert("Линия не выбрана");
+
   const material = document.getElementById("voltage-material").value;
-  const length = parseFloat(document.getElementById("voltage-length").value);
+  let length = parseFloat(document.getElementById("voltage-length").value);
+  if (isNaN(length)) length = lines[index].length;
+  if (!length) return alert("Укажи длину — в поле или при создании линии");
+
   const volts = parseFloat(document.getElementById("voltage-volts").value);
-  if (!lines[index] || !length || !volts) return alert("Заполни все поля");
+  if (!volts) return alert("Укажи напряжение");
 
   const line = lines[index];
   const is3Phase = line.phase === "3";
