@@ -31,19 +31,23 @@
 
   <div id="section-lines" class="section">
     <h2>1. Подбор проводов</h2>
-    <input type="text" id="line-name" placeholder="Имя линии">
-<input type="number" id="line-amps" placeholder="Ампераж">
-    <label>Длина (футы):
-  <input type="number" id="line-length" placeholder="необязательно">
-</label>
+    <div class="form-row">
+  <input id="line-name" placeholder="Имя линии" />
+</div>
+<div class="form-row">
+  <input id="line-amps" placeholder="Ампераж" />
+  <input id="line-length" placeholder="Длина (футы)" />
+</div>
+<div class="form-row">
+  <label><input type="radio" name="phase" value="1" checked /> 1Ø</label>
+  <label><input type="radio" name="phase" value="2" /> 2Ø</label>
+  <label><input type="radio" name="phase" value="3" /> 3Ø</label>
+</div>
+<div class="form-row">
+  <label><input type="checkbox" id="line-neutral" /> Нейтраль</label>
+  <button onclick="addLine()">Добавить</button>
+</div>
 
-
-<label><input type="radio" name="phase" value="1" checked onchange="updateNeutral()"> 1Ø</label>
-<label><input type="radio" name="phase" value="2" onchange="updateNeutral()"> 2Ø</label>
-<label><input type="radio" name="phase" value="3" onchange="updateNeutral()"> 3Ø</label>
-
-<label><input type="checkbox" id="line-neutral"> Нейтраль</label>
-<button onclick="addLine()">Добавить</button>
     <div id="line-list"></div>
   </div>
 
