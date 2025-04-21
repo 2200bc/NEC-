@@ -449,9 +449,9 @@ function renderVisualPanel() {
       <th class="slot">#</th>
       <th class="name">Load Served</th>
       <th class="phase">Phase</th>
-      <th class="slot">#</th>
       <th class="name">Load Served</th>
       <th class="phase">Phase</th>
+      <th class="slot">#</th>
     </tr>
   `;
   table.innerHTML = header;
@@ -460,34 +460,40 @@ function renderVisualPanel() {
   let phaseLoad = { A: 0, B: 0, C: 0 };
 
   const slotPhase = slot => ['A', 'B', 'C'][Math.floor(slot / 2) % 3];
-  let pointer = 0;
+
   const sorted = [...lines].sort((a, b) => b.amps - a.amps);
 
+  let pointer = 0;
   for (const line of sorted) {
+    const label = `${line.name} (${line.amps}A)`;
+
     if (line.phase === "3") {
-      let placed = false;
       for (let i = 0; i <= slots - 6; i += 2) {
         if (!slotMap[i] && !slotMap[i + 2] && !slotMap[i + 4]) {
-          const label = `${line.name} (${line.amps}A)`;
-          slotMap[i] = { label, phase: "A+B+C" };
+          slotMap[i] = { label, type: "3ph", base: i };
           slotMap[i + 2] = "_SKIP_";
           slotMap[i + 4] = "_SKIP_";
           phaseLoad.A += line.amps;
           phaseLoad.B += line.amps;
           phaseLoad.C += line.amps;
-          placed = true;
           break;
         }
       }
-      if (!placed) continue;
+    } else if (line.phase === "2") {
+      while (pointer <= slots - 2 && (slotMap[pointer] || slotMap[pointer + 1])) pointer += 2;
+      if (pointer >= slots - 1) break;
+      const phases = [slotPhase(pointer), slotPhase(pointer + 1)].join('+');
+      slotMap[pointer] = { label, type: "2ph", base: pointer, phases };
+      slotMap[pointer + 1] = "_SKIP_";
+      const a = slotPhase(pointer), b = slotPhase(pointer + 1);
+      phaseLoad[a] += line.amps;
+      phaseLoad[b] += line.amps;
+      pointer += 2;
     } else {
       while (pointer < slots && slotMap[pointer]) pointer++;
       if (pointer >= slots) break;
       const phase = slotPhase(pointer);
-      slotMap[pointer] = {
-        label: `${line.name} (${line.amps}A)`,
-        phase
-      };
+      slotMap[pointer] = { label, type: "1ph", phase };
       phaseLoad[phase] += line.amps;
     }
   }
@@ -500,13 +506,31 @@ function renderVisualPanel() {
     const r = slotMap[right];
 
     const row = document.createElement("tr");
+
+    const buildCell = (slot, entry) => {
+      if (entry === "_SKIP_") return "";
+      if (!entry) return `<td></td><td></td>`;
+
+      if (entry.type === "3ph" && slot === entry.base) {
+        return `<td rowspan="3">${entry.label}</td><td rowspan="3">A+B+C</td>`;
+      }
+      if (entry.type === "2ph" && slot === entry.base) {
+        return `<td rowspan="2">${entry.label}</td><td rowspan="2">${entry.phases}</td>`;
+      }
+      if (entry.type === "1ph") {
+        return `<td>${entry.label}</td><td>${entry.phase}</td>`;
+      }
+      return `<td></td><td></td>`;
+    };
+
+    const leftSlot = `<td>${left + 1}</td>`;
+    const rightSlot = `<td>${right + 1}</td>`;
+
     row.innerHTML = `
-      <td>${left + 1}</td>
-      <td>${l && l !== "_SKIP_" ? l.label : ""}</td>
-      <td>${l && l !== "_SKIP_" ? l.phase : ""}</td>
-      <td>${right + 1}</td>
-      <td>${r && r !== "_SKIP_" ? r.label : ""}</td>
-      <td>${r && r !== "_SKIP_" ? r.phase : ""}</td>
+      ${leftSlot}
+      ${buildCell(left, l)}
+      ${buildCell(right, r)}
+      ${rightSlot}
     `;
     table.appendChild(row);
   }
@@ -521,6 +545,7 @@ function renderVisualPanel() {
 
   container.appendChild(table);
 }
+
 
 
 function exportVisualPanel() {
