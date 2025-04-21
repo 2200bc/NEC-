@@ -238,33 +238,50 @@ function calculateVoltageDrop() {
   const index = document.getElementById("voltage-line").value;
   if (!lines[index]) return alert("Линия не выбрана");
 
+  const line = lines[index];
   const material = document.getElementById("voltage-material").value;
   let length = parseFloat(document.getElementById("voltage-length").value);
-  if (isNaN(length)) length = lines[index].length;
+  if (isNaN(length)) length = line.length;
   if (!length) return alert("Укажи длину — в поле или при создании линии");
 
-  const volts = parseFloat(document.getElementById("voltage-volts").value);
+  const volts = parseFloat(document.querySelector('input[name="voltage-volts"]:checked').value);
   if (!volts) return alert("Укажи напряжение");
 
-  const line = lines[index];
   const is3Phase = line.phase === "3";
   const resistivity = material === "copper" ? 12.9 : 21.2;
   const cma = wireAmpacityTable.find(w => w.size === line.wireSize)?.cma || 1000;
 
+  // множитель: √3 — только для 3 фаз, иначе 2
   const multiplier = is3Phase ? Math.sqrt(3) : 2;
   const VD = (multiplier * length * resistivity * line.amps) / cma;
   const percent = ((VD / volts) * 100).toFixed(2);
 
   const resultEl = document.getElementById("voltage-result");
-  resultEl.textContent = `Падение напряжения: ${VD.toFixed(2)} В (${percent}%)`;
+  let output = `🔧 Линия: ${line.name}\n`;
+  output += `Фазы: ${line.phase}, ${line.neutral ? "с нейтралью" : "без нейтрали"}\n`;
+  output += `Материал: ${material}, Длина: ${length} футов\n`;
+  output += `Ампераж: ${line.amps} A, Провод: ${line.wireSize}\n`;
+  output += `Напряжение: ${volts} В\n`;
+
+  output += `\n📐 Формула:\n`;
+  if (is3Phase) {
+    output += `VD = √3 × L × R × I / CMA\n`;
+  } else {
+    output += `VD = 2 × L × R × I / CMA\n`;
+  }
+
+  output += `\n→ Падение напряжения: ${VD.toFixed(2)} В (${percent}%)`;
 
   if (percent > 3) {
     resultEl.style.color = "red";
-    resultEl.textContent += " — превышение допустимого 3% по NEC!";
+    output += `\n⚠️ Превышение допустимого 3% по NEC!`;
   } else {
     resultEl.style.color = "inherit";
   }
+
+  resultEl.textContent = output;
 }
+
 
 
 function balancePanel() {
