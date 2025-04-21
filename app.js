@@ -332,7 +332,7 @@ function calculateVoltageDrop() {
 
 
 
-function balancePanel() {
+function legacybalancePanel() {
   const type = document.querySelector('input[name="panel-type"]:checked').value;
   const slots = parseInt(document.getElementById("panel-slots").value);
   const result = document.getElementById("panel-result");
@@ -433,6 +433,95 @@ function importData() {
   };
   reader.readAsText(file);
 }
+
+function renderVisualPanel() {
+  const slots = parseInt(document.getElementById("panel-slots").value);
+  if (!slots || slots < 6 || slots % 2 !== 0) return alert("Слотов должно быть чётное число, минимум 6");
+
+  const container = document.getElementById("panel-visual");
+  container.innerHTML = "";
+
+  const table = document.createElement("table");
+  table.className = "panel-table";
+
+  const header = `
+    <tr>
+      <th class="slot">#</th>
+      <th class="name">Load Served</th>
+      <th class="phase">Phase</th>
+      <th class="slot">#</th>
+      <th class="name">Load Served</th>
+      <th class="phase">Phase</th>
+    </tr>
+  `;
+  table.innerHTML = header;
+
+  const slotMap = new Array(slots).fill(null);
+  let phaseLoad = { A: 0, B: 0, C: 0 };
+
+  const slotPhase = slot => ['A', 'B', 'C'][Math.floor(slot / 2) % 3];
+  let pointer = 0;
+  const sorted = [...lines].sort((a, b) => b.amps - a.amps);
+
+  for (const line of sorted) {
+    if (line.phase === "3") {
+      let placed = false;
+      for (let i = 0; i <= slots - 6; i += 2) {
+        if (!slotMap[i] && !slotMap[i + 2] && !slotMap[i + 4]) {
+          const label = `${line.name} (${line.amps}A)`;
+          slotMap[i] = { label, phase: "A+B+C" };
+          slotMap[i + 2] = "_SKIP_";
+          slotMap[i + 4] = "_SKIP_";
+          phaseLoad.A += line.amps;
+          phaseLoad.B += line.amps;
+          phaseLoad.C += line.amps;
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) continue;
+    } else {
+      while (pointer < slots && slotMap[pointer]) pointer++;
+      if (pointer >= slots) break;
+      const phase = slotPhase(pointer);
+      slotMap[pointer] = {
+        label: `${line.name} (${line.amps}A)`,
+        phase
+      };
+      phaseLoad[phase] += line.amps;
+    }
+  }
+
+  for (let i = 0; i < slots / 2; i++) {
+    const left = i * 2;
+    const right = i * 2 + 1;
+
+    const l = slotMap[left];
+    const r = slotMap[right];
+
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${left + 1}</td>
+      <td>${l && l !== "_SKIP_" ? l.label : ""}</td>
+      <td>${l && l !== "_SKIP_" ? l.phase : ""}</td>
+      <td>${right + 1}</td>
+      <td>${r && r !== "_SKIP_" ? r.label : ""}</td>
+      <td>${r && r !== "_SKIP_" ? r.phase : ""}</td>
+    `;
+    table.appendChild(row);
+  }
+
+  const footer = document.createElement("tr");
+  footer.className = "footer-row";
+  const total = phaseLoad.A + phaseLoad.B + phaseLoad.C;
+  footer.innerHTML = `
+    <td colspan="6">Load per Phase: A = ${phaseLoad.A}A, B = ${phaseLoad.B}A, C = ${phaseLoad.C}A | Total = ${total}A</td>
+  `;
+  table.appendChild(footer);
+
+  container.appendChild(table);
+}
+
 
 window.onload = () => {
   showSection('lines');
