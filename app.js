@@ -303,7 +303,7 @@ function calculateVoltageDrop() {
   const material = document.getElementById("voltage-material").value;
   let length = parseFloat(document.getElementById("voltage-length").value);
   if (isNaN(length)) length = line.length;
-  if (!length) return alert("Укажи длину — в поле или при создании линии");
+  if (!length) return alert("Укажи длину");
 
   const volts = parseFloat(document.querySelector('input[name="voltage-volts"]:checked')?.value);
   if (!volts) return alert("Укажи напряжение");
@@ -315,36 +315,38 @@ function calculateVoltageDrop() {
   const wireSize = override || line.wireSize;
   const cma = wireAmpacityTable.find(w => w.size === wireSize)?.cma || 1000;
 
+  const useReal = document.getElementById("use-real-load").checked;
+  const realAmps = parseFloat(document.getElementById("real-load").value);
+  let amps = line.amps;
+  if (useReal && !isNaN(realAmps)) amps = realAmps;
+
   const multiplier = is3Phase ? Math.sqrt(3) : 2;
-  const VD = (multiplier * length * resistivity * line.amps) / cma;
+  const VD = (multiplier * length * resistivity * amps) / cma;
   const percent = ((VD / volts) * 100).toFixed(2);
 
   const resultEl = document.getElementById("voltage-result");
   let output = "";
 
-  // 1. ДАННЫЕ
   const phaseText =
     line.phase === "1" ? "1 фаза" :
-    line.phase === "2" ? "2 фазы" :
+    line.phase === "2" ? "2 фазы (между фазами)" :
     "3 фазы";
   const neutralText = line.neutral ? "с нейтралью" : "без нейтрали";
-  output += `🔧 ${phaseText}, ${neutralText}, ${line.amps}А\n`;
+  output += `🔧 ${phaseText}, ${neutralText}, ${amps}А\n`;
 
-  // 2. ФОРМУЛА
   output += `\n📐 Формула:\n`;
   output += is3Phase
     ? `VD = √3 × L × R × I / CMA\n`
     : `VD = 2 × L × R × I / CMA\n`;
 
-  // 3. РЕЗУЛЬТАТ
   output += `\n→ Падение напряжения: ${VD.toFixed(2)} В (${percent}%)`;
 
   if (percent > 3) {
     resultEl.style.color = "red";
-    output += `\n⚠️ Превышение допустимого 3% по NEC!`;
+    output += `\n⚠️ Превышает 3% по NEC!`;
 
     const recommended = wireAmpacityTable.find(w =>
-      (multiplier * length * resistivity * line.amps) / w.cma / volts < 0.03
+      (multiplier * length * resistivity * amps) / w.cma / volts < 0.03
     );
     if (recommended) {
       output += `\n💡 Рекомендуемый размер: ${recommended.size}`;
@@ -357,7 +359,6 @@ function calculateVoltageDrop() {
 
   resultEl.textContent = output;
 }
-
 
 
 
