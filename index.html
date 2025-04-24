@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -94,31 +95,9 @@
   <input id="voltage-length" type="number" placeholder="Длина, футов" />
 
   <div>
-    <label><input type="radio" name="voltage-volts" value="120" checked /> 120 В</label>
+    <label><input type="radio" name="voltage-volts" value="110" checked /> 110 В</label>
     <label><input type="radio" name="voltage-volts" value="208" /> 208 В</label>
   </div>
-
-<!-- Переключатель системы питания -->
-<div id="system-switcher" style="margin: 10px 0;">
-  <strong>Система питания:</strong><br>
-  <label>
-    <input type="radio" name="power-system" value="208" checked>
-    120/208 В (трёхфазная)
-  </label><br>
-  <label>
-    <input type="radio" name="power-system" value="240">
-    120/240 В (двухфазная, частный дом)
-  </label>
-</div>
-
-<!-- Реальная нагрузка -->
-<div style="margin-bottom: 10px;">
-  <label>
-    <input type="checkbox" id="use-real-load">
-    Указать реальную нагрузку
-  </label><br>
-  <input type="number" id="real-load" placeholder="(не обязательно)" style="width: 100px;" disabled>
-</div>
 
   <label>Размер провода:
     <select id="voltage-override">
@@ -179,6 +158,6 @@
 
 
 
-  <script type="module" src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
