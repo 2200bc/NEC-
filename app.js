@@ -689,7 +689,17 @@ window.onload = () => {
   updateSelectors();
   updateNeutral();
 
+  // Обновление нейтрали при смене фазы при добавлении линии
   document.querySelectorAll('input[name="phase"]').forEach(radio => {
     radio.addEventListener('change', updateNeutral);
   });
+
+  // Активация поля "реальная нагрузка"
+  const realLoadCheckbox = document.getElementById("use-real-load");
+  const realLoadInput = document.getElementById("real-load");
+  if (realLoadCheckbox && realLoadInput) {
+    realLoadCheckbox.addEventListener("change", (e) => {
+      realLoadInput.disabled = !e.target.checked;
+    });
+  }
 };
