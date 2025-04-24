@@ -208,31 +208,7 @@ function updateVoltageDefaults() {
   resultEl.style.color = "inherit";
 }
 
-  // Подставить длину, если есть
-  const lengthField = document.getElementById("voltage-length");
-  if (line.length) {
-    lengthField.value = line.length;
-  } else {
-    lengthField.value = "";
-  }
-
-  // По умолчанию — 110 В
-  document.querySelector('input[name="voltage-volts"][value="110"]').checked = true;
-
-  // Установить размер провода из линии
-  const overrideSelect = document.getElementById("voltage-override");
-  if (overrideSelect && line.wireSize) {
-    overrideSelect.value = line.wireSize;
-  }
-
-  // Лаконичный вывод
-  const phaseText =
-    line.phase === "1" ? "1 фаза" :
-    line.phase === "2" ? "2 фазы" :
-    "3 фазы";
-  const neutralText = line.neutral ? "с нейтралью" : "без нейтрали";
-  resultEl.textContent = `🔧 ${phaseText}, ${neutralText}, ${line.amps}А`;
-  resultEl.style.color = "inherit";
+  
 }
 
 
