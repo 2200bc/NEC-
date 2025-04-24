@@ -179,26 +179,24 @@ function updateVoltageDefaults() {
     return;
   }
 
-  const system = document.querySelector('input[name="power-system"]:checked')?.value || "208";
-
+  // Подставить длину, если есть
   const lengthField = document.getElementById("voltage-length");
-  lengthField.value = line.length || "";
-
-  if (line.phase === "1") {
-    document.querySelector('input[name="voltage-volts"][value="120"]')?.checked = true;
-  } else if (line.phase === "2") {
-    // Для двух фаз выбираем напряжение по выбранной системе (208 или 240)
-    document.querySelector(`input[name="voltage-volts"][value="${system}"]`)?.checked = true;
+  if (line.length) {
+    lengthField.value = line.length;
   } else {
-    // Трехфазное — всегда 208 В
-    document.querySelector('input[name="voltage-volts"][value="208"]')?.checked = true;
+    lengthField.value = "";
   }
 
+  // По умолчанию — 110 В
+  document.querySelector('input[name="voltage-volts"][value="110"]').checked = true;
+
+  // Установить размер провода из линии
   const overrideSelect = document.getElementById("voltage-override");
   if (overrideSelect && line.wireSize) {
     overrideSelect.value = line.wireSize;
   }
 
+  // Лаконичный вывод
   const phaseText =
     line.phase === "1" ? "1 фаза" :
     line.phase === "2" ? "2 фазы" :
@@ -207,8 +205,6 @@ function updateVoltageDefaults() {
   resultEl.textContent = `🔧 ${phaseText}, ${neutralText}, ${line.amps}А`;
   resultEl.style.color = "inherit";
 }
-
-  
 
 
 
@@ -278,7 +274,7 @@ function calculateVoltageDrop() {
   const material = document.getElementById("voltage-material").value;
   let length = parseFloat(document.getElementById("voltage-length").value);
   if (isNaN(length)) length = line.length;
-  if (!length) return alert("Укажи длину");
+  if (!length) return alert("Укажи длину — в поле или при создании линии");
 
   const volts = parseFloat(document.querySelector('input[name="voltage-volts"]:checked')?.value);
   if (!volts) return alert("Укажи напряжение");
@@ -290,38 +286,36 @@ function calculateVoltageDrop() {
   const wireSize = override || line.wireSize;
   const cma = wireAmpacityTable.find(w => w.size === wireSize)?.cma || 1000;
 
-  const useReal = document.getElementById("use-real-load").checked;
-  const realAmps = parseFloat(document.getElementById("real-load").value);
-  let amps = line.amps;
-  if (useReal && !isNaN(realAmps)) amps = realAmps;
-
   const multiplier = is3Phase ? Math.sqrt(3) : 2;
-  const VD = (multiplier * length * resistivity * amps) / cma;
+  const VD = (multiplier * length * resistivity * line.amps) / cma;
   const percent = ((VD / volts) * 100).toFixed(2);
 
   const resultEl = document.getElementById("voltage-result");
   let output = "";
 
+  // 1. ДАННЫЕ
   const phaseText =
     line.phase === "1" ? "1 фаза" :
-    line.phase === "2" ? "2 фазы (между фазами)" :
+    line.phase === "2" ? "2 фазы" :
     "3 фазы";
   const neutralText = line.neutral ? "с нейтралью" : "без нейтрали";
-  output += `🔧 ${phaseText}, ${neutralText}, ${amps}А\n`;
+  output += `🔧 ${phaseText}, ${neutralText}, ${line.amps}А\n`;
 
+  // 2. ФОРМУЛА
   output += `\n📐 Формула:\n`;
   output += is3Phase
     ? `VD = √3 × L × R × I / CMA\n`
     : `VD = 2 × L × R × I / CMA\n`;
 
+  // 3. РЕЗУЛЬТАТ
   output += `\n→ Падение напряжения: ${VD.toFixed(2)} В (${percent}%)`;
 
   if (percent > 3) {
     resultEl.style.color = "red";
-    output += `\n⚠️ Превышает 3% по NEC!`;
+    output += `\n⚠️ Превышение допустимого 3% по NEC!`;
 
     const recommended = wireAmpacityTable.find(w =>
-      (multiplier * length * resistivity * amps) / w.cma / volts < 0.03
+      (multiplier * length * resistivity * line.amps) / w.cma / volts < 0.03
     );
     if (recommended) {
       output += `\n💡 Рекомендуемый размер: ${recommended.size}`;
@@ -334,6 +328,7 @@ function calculateVoltageDrop() {
 
   resultEl.textContent = output;
 }
+
 
 
 
@@ -664,17 +659,7 @@ window.onload = () => {
   updateSelectors();
   updateNeutral();
 
-  // Обновление нейтрали при смене фазы при добавлении линии
   document.querySelectorAll('input[name="phase"]').forEach(radio => {
     radio.addEventListener('change', updateNeutral);
   });
-
-  // Активация поля "реальная нагрузка"
-  const realLoadCheckbox = document.getElementById("use-real-load");
-  const realLoadInput = document.getElementById("real-load");
-  if (realLoadCheckbox && realLoadInput) {
-    realLoadCheckbox.addEventListener("change", (e) => {
-      realLoadInput.disabled = !e.target.checked;
-    });
-  }
 };
