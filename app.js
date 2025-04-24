@@ -209,7 +209,6 @@ function updateVoltageDefaults() {
 }
 
   
-}
 
 
 
