@@ -179,6 +179,35 @@ function updateVoltageDefaults() {
     return;
   }
 
+  const system = document.querySelector('input[name="power-system"]:checked')?.value || "208";
+
+  const lengthField = document.getElementById("voltage-length");
+  lengthField.value = line.length || "";
+
+  if (line.phase === "1") {
+    document.querySelector('input[name="voltage-volts"][value="120"]')?.checked = true;
+  } else if (line.phase === "2") {
+    // Для двух фаз выбираем напряжение по выбранной системе (208 или 240)
+    document.querySelector(`input[name="voltage-volts"][value="${system}"]`)?.checked = true;
+  } else {
+    // Трехфазное — всегда 208 В
+    document.querySelector('input[name="voltage-volts"][value="208"]')?.checked = true;
+  }
+
+  const overrideSelect = document.getElementById("voltage-override");
+  if (overrideSelect && line.wireSize) {
+    overrideSelect.value = line.wireSize;
+  }
+
+  const phaseText =
+    line.phase === "1" ? "1 фаза" :
+    line.phase === "2" ? "2 фазы" :
+    "3 фазы";
+  const neutralText = line.neutral ? "с нейтралью" : "без нейтрали";
+  resultEl.textContent = `🔧 ${phaseText}, ${neutralText}, ${line.amps}А`;
+  resultEl.style.color = "inherit";
+}
+
   // Подставить длину, если есть
   const lengthField = document.getElementById("voltage-length");
   if (line.length) {
