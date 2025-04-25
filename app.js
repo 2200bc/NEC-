@@ -218,8 +218,7 @@ function updateVoltageDefaults() {
     lengthField.value = "";
   }
 
-  // По умолчанию — 110 В
-  document.querySelector('input[name="voltage-volts"][value="110"]').checked = true;
+ 
 
   // Установить размер провода из линии
   const overrideSelect = document.getElementById("voltage-override");
@@ -235,6 +234,13 @@ function updateVoltageDefaults() {
   const neutralText = line.neutral ? "с нейтралью" : "без нейтрали";
   resultEl.textContent = `🔧 ${phaseText}, ${neutralText}, ${line.amps}А`;
   resultEl.style.color = "inherit";
+
+  const actualInput = document.getElementById("voltage-actual-amps");
+if (actualInput) {
+  actualInput.placeholder = `По умолчанию: ${line.amps}А`;
+  actualInput.value = '';
+}
+
 }
 
 
@@ -342,8 +348,12 @@ function calculateVoltageDrop() {
     }
   }
 
-  const VD = (multiplier * length * resistivity * line.amps) / cma;
-  const percent = ((VD / voltage) * 100).toFixed(2);
+  const actualAmpsInput = document.getElementById("voltage-actual-amps").value;
+const actualAmps = parseFloat(actualAmpsInput) || line.amps;
+
+const VD = (multiplier * length * resistivity * actualAmps) / cma;
+const percent = ((VD / voltage) * 100).toFixed(2);
+
 
   const resultEl = document.getElementById("voltage-result");
   let output = "";
@@ -353,6 +363,8 @@ function calculateVoltageDrop() {
     line.phase === "2" ? "2 фазы" :
     "3 фазы";
   const neutralText = line.neutral ? "с нейтралью" : "без нейтрали";
+  output += `Система: ${system === "us" ? "Американская" : "Европейская"}, напряжение: ${voltage} В\n`;
+
 
   output += `🔧 ${phaseText}, ${neutralText}, ${line.amps}А\n`;
   output += `Система: ${system === "us" ? "Американская" : "Европейская"}, напряжение: ${voltage} В\n`;
