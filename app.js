@@ -683,6 +683,11 @@ document.head.appendChild(style);
 
 
 
+window.addEventListener('load', () => {
+  updateSystemOptions();
+});
+
+
 
 window.onload = () => {
   showSection('lines');
