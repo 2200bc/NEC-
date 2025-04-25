@@ -757,35 +757,18 @@ document.head.appendChild(style);
 
 
 
-window.addEventListener("DOMContentLoaded", () => {
-  const systemSelect = document.getElementById("global-system");
+window.onload = () => {
+  updateSystemOptions();
+  renderLines();
+  updateSelectors();
+  updateNeutral();
+  updateUnits();
+  updateVoltageDefaults();
+  showSection('lines');
 
-  // Загружаем ранее сохранённую систему, если есть
-  const savedSystem = localStorage.getItem("system");
-  if (savedSystem === "us" || savedSystem === "eu") {
-    systemSelect.value = savedSystem;
-  }
-
-  // Применить настройки системы
-  function applySystemSettings(system) {
-    localStorage.setItem("system", system);
+  document.getElementById("global-system").addEventListener("change", () => {
     updateSystemOptions();
     updateUnits();
     renderLines();
-    updateSelectors();
-    updateNeutral();
-    updateVoltageDefaults();
-    showSection("lines");
-  }
-
-  // Инициализировать на старте
-  applySystemSettings(systemSelect.value);
-
-  // При изменении вручную
-  systemSelect.addEventListener("change", () => {
-    const selected = systemSelect.value;
-    if (selected === "us" || selected === "eu") {
-      applySystemSettings(selected);
-    }
   });
-});
+};
