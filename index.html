@@ -21,6 +21,15 @@
 </head>
 <body>
   <h1>NEC Калькулятор</h1>
+
+  <div class="form-group">
+  <label for="global-system">Система питания:</label>
+  <select id="global-system" class="input-field" onchange="updateSystemOptions()">
+    <option value="us">Американская (120/208/240 В)</option>
+    <option value="eu">Европейская / СНГ (230/400 В)</option>
+  </select>
+</div>
+
   <div class="menu">
   <button onclick="showSection('lines')">1. Подбор проводов</button>
   <button onclick="showSection('derating')">2. Дирейтинг</button>
