@@ -37,6 +37,11 @@
 
 
   <div class="menu">
+    <label for="global-system">Система питания:</label>
+    <select id="global-system">
+      <option value="us">Американская / Split-phase (120/240 В)</option>
+      <option value="eu">Европейская / СНГ (230/400 В)</option>
+    </select>
   <button onclick="showSection('lines')">1. Подбор проводов</button>
   <button onclick="showSection('derating')">2. Дирейтинг</button>
   <button onclick="showSection('voltage')">3. Падение напряжения</button>
