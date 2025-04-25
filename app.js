@@ -772,6 +772,7 @@ window.onload = () => {
 
   document.getElementById("global-system").addEventListener("change", () => {
   updateSystemOptions();  // обновит фазы, напряжения и плейсхолдеры
+      updateUnits();  
   renderLines();          // пересоберёт список линий с правильной единицей
 });
 
