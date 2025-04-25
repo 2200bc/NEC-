@@ -64,21 +64,20 @@ const conduitFillTable = {
 
 function updateUnits() {
   const system = document.getElementById("global-system").value;
-  const lengthLabel = document.querySelector('label[for="voltage-length"]');
-  const lengthInput = document.getElementById("voltage-length");
 
-  if (system === "eu") {
-    lengthLabel.textContent = "Длина (в метрах):";
-    if (lengthInput.placeholder.includes("ft")) {
-      lengthInput.placeholder = "например: 20 м";
-    }
-  } else {
-    lengthLabel.textContent = "Длина (в футах):";
-    if (lengthInput.placeholder.includes("м")) {
-      lengthInput.placeholder = "например: 50 ft";
-    }
+  // поле добавления линии
+  const addInput = document.getElementById("line-length");
+  if (addInput) {
+    addInput.placeholder = system === "eu" ? "Длина (метры)" : "Длина (футы)";
+  }
+
+  // поле во вкладке падения напряжения
+  const voltageInput = document.getElementById("voltage-length");
+  if (voltageInput) {
+    voltageInput.placeholder = system === "eu" ? "например: 20 м" : "например: 50 ft";
   }
 }
+
 
 
 
@@ -145,19 +144,24 @@ function deleteLine(index) {
 function renderLines() {
   const container = document.getElementById('line-list');
   container.innerHTML = "";
+  const system = document.getElementById("global-system").value;
+  const unit = system === "eu" ? "м" : "ft";
+
   lines.forEach((line, i) => {
     const phaseText =
       line.phase === "1" ? "1 фаза" :
       line.phase === "2" ? "2 фазы" :
       "3 фазы";
     const neutralText = line.neutral ? ", с нейтралью" : "";
-    const lengthText = line.length ? `, ${line.length}ft` : "";
+    const lengthText = line.length ? `, ${parseFloat(line.length).toFixed(1)}${unit}` : "";
+
     const div = document.createElement("div");
     div.innerHTML = `${line.name}: ${line.amps}А, ${phaseText}${neutralText}${lengthText} → ${line.wireSize}
       <button onclick="deleteLine(${i})">Удалить</button>`;
     container.appendChild(div);
   });
 }
+
 
 
 
@@ -232,34 +236,38 @@ function updateVoltageDefaults() {
     return;
   }
 
-  // Длина
+  const system = document.getElementById("global-system").value;
   const lengthField = document.getElementById("voltage-length");
+  const overrideSelect = document.getElementById("voltage-override");
+  const actualInput = document.getElementById("voltage-actual-amps");
+
+  // Длина
   if (line.length) {
     lengthField.value = line.length;
   } else {
     lengthField.value = "";
   }
 
-  // Размер провода
-  const overrideSelect = document.getElementById("voltage-override");
+  // Обновляем плейсхолдер
+  lengthField.placeholder = system === "eu" ? "например: 20 м" : "например: 50 ft";
+
+  // Провод
   if (overrideSelect && line.wireSize) {
     overrideSelect.value = line.wireSize;
   }
 
-  // Реальный ток — плейсхолдер
-  const actualInput = document.getElementById("voltage-actual-amps");
+  // Ток
   if (actualInput) {
     actualInput.placeholder = `По умолчанию: ${line.amps}А`;
     actualInput.value = "";
   }
 
-  // Вывод базовой информации (сразу, до расчёта)
+  // Базовая информация
   const phaseText =
     line.phase === "1" ? "1 фаза" :
     line.phase === "2" ? "2 фазы" :
     "3 фазы";
   const neutralText = line.neutral ? "с нейтралью" : "без нейтрали";
-  const system = document.getElementById("global-system").value;
 
   let voltage = 120;
   if (system === "us") {
@@ -267,8 +275,7 @@ function updateVoltageDefaults() {
     else if (line.phase === "2") voltage = line.neutral ? 240 : 208;
     else voltage = 120;
   } else {
-    if (line.phase === "3") voltage = 400;
-    else voltage = 230;
+    voltage = line.phase === "3" ? 400 : 230;
   }
 
   resultEl.style.color = "inherit";
@@ -759,8 +766,13 @@ window.onload = () => {
   renderLines();
   updateSelectors();
   updateNeutral();
+  updateUnits(); // ← добавлен вызов обновления единиц
+  updateVoltageDefaults();
 
-  document.querySelectorAll('input[name="phase"]').forEach(radio => {
-    radio.addEventListener('change', updateNeutral);
-  });
+
+  document.getElementById("global-system").addEventListener("change", () => {
+  updateSystemOptions();  // обновит фазы, напряжения и плейсхолдеры
+  renderLines();          // пересоберёт список линий с правильной единицей
+});
+
 };
