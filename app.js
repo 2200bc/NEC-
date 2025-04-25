@@ -142,6 +142,37 @@ function renderLines() {
 
 
 
+function updateSystemOptions() {
+  const system = document.getElementById("global-system").value;
+  const phaseSelect = document.getElementById("phase-select");
+  const voltageSelect = document.getElementById("voltage-select");
+
+  if (!phaseSelect || !voltageSelect) return;
+
+  // Очищаем старые опции
+  phaseSelect.innerHTML = "";
+  voltageSelect.innerHTML = "";
+
+  if (system === "us") {
+    phaseSelect.innerHTML += `<option value="1Ø">1Ø + N</option>`;
+    phaseSelect.innerHTML += `<option value="2Ø">2Ø</option>`;
+    phaseSelect.innerHTML += `<option value="3Ø">3Ø + N</option>`;
+
+    voltageSelect.innerHTML += `<option value="120">120 В</option>`;
+    voltageSelect.innerHTML += `<option value="208">208 В</option>`;
+    voltageSelect.innerHTML += `<option value="240">240 В</option>`;
+  } else if (system === "eu") {
+    phaseSelect.innerHTML += `<option value="1Ø">1Ø + N</option>`;
+    phaseSelect.innerHTML += `<option value="3Ø">3Ø + N</option>`;
+
+    voltageSelect.innerHTML += `<option value="230">230 В</option>`;
+    voltageSelect.innerHTML += `<option value="400">400 В</option>`;
+  }
+}
+
+
+
+
 function updateSelectors() {
   const derList = document.getElementById('derating-lines-list');
   const vSel = document.getElementById('voltage-line');
