@@ -210,7 +210,7 @@ function updateVoltageDefaults() {
     return;
   }
 
-  // Подставить длину, если есть
+  // Длина
   const lengthField = document.getElementById("voltage-length");
   if (line.length) {
     lengthField.value = line.length;
@@ -218,30 +218,41 @@ function updateVoltageDefaults() {
     lengthField.value = "";
   }
 
- 
-
-  // Установить размер провода из линии
+  // Размер провода
   const overrideSelect = document.getElementById("voltage-override");
   if (overrideSelect && line.wireSize) {
     overrideSelect.value = line.wireSize;
   }
 
-  // Лаконичный вывод
+  // Реальный ток — плейсхолдер
+  const actualInput = document.getElementById("voltage-actual-amps");
+  if (actualInput) {
+    actualInput.placeholder = `По умолчанию: ${line.amps}А`;
+    actualInput.value = "";
+  }
+
+  // Вывод базовой информации (сразу, до расчёта)
   const phaseText =
     line.phase === "1" ? "1 фаза" :
     line.phase === "2" ? "2 фазы" :
     "3 фазы";
   const neutralText = line.neutral ? "с нейтралью" : "без нейтрали";
-  resultEl.textContent = `🔧 ${phaseText}, ${neutralText}, ${line.amps}А`;
+  const system = document.getElementById("global-system").value;
+
+  let voltage = 120;
+  if (system === "us") {
+    if (line.phase === "3") voltage = 208;
+    else if (line.phase === "2") voltage = line.neutral ? 240 : 208;
+    else voltage = 120;
+  } else {
+    if (line.phase === "3") voltage = 400;
+    else voltage = 230;
+  }
+
   resultEl.style.color = "inherit";
-
-  const actualInput = document.getElementById("voltage-actual-amps");
-if (actualInput) {
-  actualInput.placeholder = `По умолчанию: ${line.amps}А`;
-  actualInput.value = '';
+  resultEl.textContent = `🔧 ${phaseText}, ${neutralText}, ${line.amps}А\nСистема: ${system === "us" ? "Американская" : "Европейская"}, напряжение: ${voltage} В\nПровод: ${line.wireSize}`;
 }
 
-}
 
 
 
