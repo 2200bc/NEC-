@@ -759,40 +759,33 @@ document.head.appendChild(style);
 
 window.addEventListener("DOMContentLoaded", () => {
   const systemSelect = document.getElementById("global-system");
-  const selectScreen = document.getElementById("system-select-screen");
-  const mainInterface = document.getElementById("main-interface");
 
-  // Когда пользователь выбирает систему
-  systemSelect.addEventListener("change", () => {
-    const system = systemSelect.value;
-    if (system === "us" || system === "eu") {
-      localStorage.setItem("system", system);
-      selectScreen.style.display = "none";
-      mainInterface.style.display = "block";
-
-      updateSystemOptions();
-      renderLines();
-      updateSelectors();
-      updateNeutral();
-      updateUnits();
-      updateVoltageDefaults();
-      showSection('lines');
-    }
-  });
-
-  // Проверяем: была ли система сохранена ранее
+  // Загружаем ранее сохранённую систему, если есть
   const savedSystem = localStorage.getItem("system");
   if (savedSystem === "us" || savedSystem === "eu") {
     systemSelect.value = savedSystem;
-    selectScreen.style.display = "none";
-    mainInterface.style.display = "block";
+  }
 
+  // Применить настройки системы
+  function applySystemSettings(system) {
+    localStorage.setItem("system", system);
     updateSystemOptions();
+    updateUnits();
     renderLines();
     updateSelectors();
     updateNeutral();
-    updateUnits();
     updateVoltageDefaults();
-    showSection('lines');
+    showSection("lines");
   }
+
+  // Инициализировать на старте
+  applySystemSettings(systemSelect.value);
+
+  // При изменении вручную
+  systemSelect.addEventListener("change", () => {
+    const selected = systemSelect.value;
+    if (selected === "us" || selected === "eu") {
+      applySystemSettings(selected);
+    }
+  });
 });
