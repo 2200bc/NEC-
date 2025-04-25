@@ -755,25 +755,44 @@ document.head.appendChild(style);
 
 
 
-window.addEventListener('load', () => {
-  updateSystemOptions();
+
+
+window.addEventListener("DOMContentLoaded", () => {
+  const systemSelect = document.getElementById("global-system");
+  const selectScreen = document.getElementById("system-select-screen");
+  const mainInterface = document.getElementById("main-interface");
+
+  // Когда пользователь выбирает систему
+  systemSelect.addEventListener("change", () => {
+    const system = systemSelect.value;
+    if (system === "us" || system === "eu") {
+      localStorage.setItem("system", system);
+      selectScreen.style.display = "none";
+      mainInterface.style.display = "block";
+
+      updateSystemOptions();
+      renderLines();
+      updateSelectors();
+      updateNeutral();
+      updateUnits();
+      updateVoltageDefaults();
+      showSection('lines');
+    }
+  });
+
+  // Проверяем: была ли система сохранена ранее
+  const savedSystem = localStorage.getItem("system");
+  if (savedSystem === "us" || savedSystem === "eu") {
+    systemSelect.value = savedSystem;
+    selectScreen.style.display = "none";
+    mainInterface.style.display = "block";
+
+    updateSystemOptions();
+    renderLines();
+    updateSelectors();
+    updateNeutral();
+    updateUnits();
+    updateVoltageDefaults();
+    showSection('lines');
+  }
 });
-
-
-
-window.onload = () => {
-  showSection('lines');
-  renderLines();
-  updateSelectors();
-  updateNeutral();
-  updateUnits(); // ← добавлен вызов обновления единиц
-  updateVoltageDefaults();
-
-
-  document.getElementById("global-system").addEventListener("change", () => {
-  updateSystemOptions();  // обновит фазы, напряжения и плейсхолдеры
-      updateUnits();  
-  renderLines();          // пересоберёт список линий с правильной единицей
-});
-
-};
