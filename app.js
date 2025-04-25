@@ -302,56 +302,73 @@ function calculateVoltageDrop() {
   if (!lines[index]) return alert("Линия не выбрана");
 
   const line = lines[index];
+  const system = document.getElementById("global-system").value;
   const material = document.getElementById("voltage-material").value;
   let length = parseFloat(document.getElementById("voltage-length").value);
   if (isNaN(length)) length = line.length;
   if (!length) return alert("Укажи длину — в поле или при создании линии");
 
-  const volts = parseFloat(document.querySelector('input[name="voltage-volts"]:checked')?.value);
-  if (!volts) return alert("Укажи напряжение");
-
-  const is3Phase = parseInt(line.phase) === 3;
-  const resistivity = material === "copper" ? 12.9 : 21.2;
-
   const override = document.getElementById("voltage-override").value;
   const wireSize = override || line.wireSize;
   const cma = wireAmpacityTable.find(w => w.size === wireSize)?.cma || 1000;
+  const resistivity = material === "copper" ? 12.9 : 21.2;
 
-  const multiplier = is3Phase ? Math.sqrt(3) : 2;
+  let voltage = 120;
+  let multiplier = 2;
+
+  if (system === "us") {
+    if (line.phase === "3") {
+      voltage = 208;
+      multiplier = Math.sqrt(3);
+    } else if (line.phase === "2") {
+      if (line.neutral) {
+        voltage = 240; // split-phase
+        multiplier = 2;
+      } else {
+        voltage = 208; // между фазами
+        multiplier = 2;
+      }
+    } else {
+      voltage = 120;
+      multiplier = 2;
+    }
+  } else if (system === "eu") {
+    if (line.phase === "3") {
+      voltage = 400;
+      multiplier = Math.sqrt(3);
+    } else {
+      voltage = 230;
+      multiplier = 2;
+    }
+  }
+
   const VD = (multiplier * length * resistivity * line.amps) / cma;
-  const percent = ((VD / volts) * 100).toFixed(2);
+  const percent = ((VD / voltage) * 100).toFixed(2);
 
   const resultEl = document.getElementById("voltage-result");
   let output = "";
 
-  // 1. ДАННЫЕ
   const phaseText =
     line.phase === "1" ? "1 фаза" :
     line.phase === "2" ? "2 фазы" :
     "3 фазы";
   const neutralText = line.neutral ? "с нейтралью" : "без нейтрали";
+
   output += `🔧 ${phaseText}, ${neutralText}, ${line.amps}А\n`;
-
-  // 2. ФОРМУЛА
-  output += `\n📐 Формула:\n`;
-  output += is3Phase
-    ? `VD = √3 × L × R × I / CMA\n`
-    : `VD = 2 × L × R × I / CMA\n`;
-
-  // 3. РЕЗУЛЬТАТ
-  output += `\n→ Падение напряжения: ${VD.toFixed(2)} В (${percent}%)`;
+  output += `Система: ${system === "us" ? "Американская" : "Европейская"}, напряжение: ${voltage} В\n`;
+  output += `\n📐 Формула: ${multiplier === Math.sqrt(3) ? "√3 × L × R × I / CMA" : "2 × L × R × I / CMA"}\n`;
+  output += `→ Падение: ${VD.toFixed(2)} В (${percent}%)`;
 
   if (percent > 3) {
     resultEl.style.color = "red";
     output += `\n⚠️ Превышение допустимого 3% по NEC!`;
-
     const recommended = wireAmpacityTable.find(w =>
-      (multiplier * length * resistivity * line.amps) / w.cma / volts < 0.03
+      (multiplier * length * resistivity * line.amps) / w.cma / voltage < 0.03
     );
     if (recommended) {
       output += `\n💡 Рекомендуемый размер: ${recommended.size}`;
     } else {
-      output += `\n❗ Невозможно подобрать провод в пределах 3%`;
+      output += `\n❗ Нет подходящего провода для 3%`;
     }
   } else {
     resultEl.style.color = "inherit";
@@ -359,7 +376,6 @@ function calculateVoltageDrop() {
 
   resultEl.textContent = output;
 }
-
 
 
 
