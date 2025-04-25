@@ -62,6 +62,26 @@ const conduitFillTable = {
   ENT: { "1": 0.350, "1.25": 0.600, "1.5": 0.800, "2": 1.300 }
 };
 
+function updateUnits() {
+  const system = document.getElementById("global-system").value;
+  const lengthLabel = document.querySelector('label[for="voltage-length"]');
+  const lengthInput = document.getElementById("voltage-length");
+
+  if (system === "eu") {
+    lengthLabel.textContent = "Длина (в метрах):";
+    if (lengthInput.placeholder.includes("ft")) {
+      lengthInput.placeholder = "например: 20 м";
+    }
+  } else {
+    lengthLabel.textContent = "Длина (в футах):";
+    if (lengthInput.placeholder.includes("м")) {
+      lengthInput.placeholder = "например: 50 ft";
+    }
+  }
+}
+
+
+
 function getWireSize(amps) {
   for (let i = 0; i < wireAmpacityTable.length; i++) {
     const wire = wireAmpacityTable[i];
@@ -168,6 +188,8 @@ function updateSystemOptions() {
     voltageSelect.innerHTML += `<option value="230">230 В</option>`;
     voltageSelect.innerHTML += `<option value="400">400 В</option>`;
   }
+  updateUnits();
+
 }
 
 
@@ -326,6 +348,10 @@ function calculateVoltageDrop() {
   if (!length) return alert("Укажи длину — в поле или при создании линии");
 
   const override = document.getElementById("voltage-override").value;
+  if (system === "eu") {
+  length *= 3.28084; // метры → футы
+}
+
   const wireSize = override || line.wireSize;
   const cma = wireAmpacityTable.find(w => w.size === wireSize)?.cma || 1000;
   const resistivity = material === "copper" ? 12.9 : 21.2;
