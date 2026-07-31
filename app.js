@@ -13,7 +13,7 @@ import {
 
 const elements = Object.fromEntries(
   [
-    "app-message", "global-units", "line-form", "line-name", "line-amps", "line-length",
+    "app-message", "global-panel-type", "global-units", "line-form", "line-name", "line-amps", "line-length",
     "line-length-label", "line-neutral-ccc", "line-material", "line-insulation-temp",
     "line-terminal-temp", "line-ambient", "line-continuous", "line-circuit-type",
     "line-count", "line-list", "conduit-type",
@@ -195,9 +195,8 @@ function renderWireOptions() {
 }
 
 function renderAll() {
+  elements["global-panel-type"].value = String(project.panelType);
   elements["global-units"].value = project.unitSystem;
-  const panelRadio = document.querySelector(`input[name="panel-type"][value="${project.panelType}"]`);
-  if (panelRadio) panelRadio.checked = true;
   updateCircuitPhaseAvailability();
   setUnitLabels();
   renderCircuitList();
@@ -374,7 +373,7 @@ function panelCell(slotNumber, entry) {
 
 function renderPanelFromForm() {
   try {
-    const panelType = Number(document.querySelector('input[name="panel-type"]:checked').value);
+    const panelType = project.panelType;
     const result = layoutPanel({
       circuits: project.circuits,
       panelType,
@@ -547,15 +546,13 @@ function registerEvents() {
     const button = event.target.closest("[data-delete-circuit]");
     if (button) deleteCircuit(button.dataset.deleteCircuit);
   });
-  document.querySelectorAll('input[name="panel-type"]').forEach((input) => {
-    input.addEventListener("change", () => {
-      project.panelType = Number(input.value);
-      persist();
-      updateCircuitPhaseAvailability();
-      elements["voltage-result"].hidden = true;
-      elements["panel-result"].hidden = true;
-      elements["panel-visual"].replaceChildren();
-    });
+  elements["global-panel-type"].addEventListener("change", () => {
+    project.panelType = Number(elements["global-panel-type"].value);
+    persist();
+    updateCircuitPhaseAvailability();
+    elements["voltage-result"].hidden = true;
+    elements["panel-result"].hidden = true;
+    elements["panel-visual"].replaceChildren();
   });
   elements["global-units"].addEventListener("change", () => {
     project.unitSystem = elements["global-units"].value === "m" ? "m" : "ft";

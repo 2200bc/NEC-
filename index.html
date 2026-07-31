@@ -22,6 +22,13 @@
         <p class="subtitle">Расчёты цепей и панелей с прозрачными допущениями.</p>
       </div>
       <div class="header-settings">
+        <label class="system-picker" for="global-panel-type">
+          <span>Тип панели</span>
+          <select id="global-panel-type">
+            <option value="1">Split-phase · 120/240 V</option>
+            <option value="3">3-phase Wye · 120/208 V</option>
+          </select>
+        </label>
         <label class="system-picker" for="global-units">
           <span>Единицы длины</span>
           <select id="global-units">
@@ -230,11 +237,6 @@
           </div>
 
           <div class="card form-grid">
-            <fieldset class="field choice-group">
-              <legend>Тип панели</legend>
-              <label><input type="radio" name="panel-type" value="1" checked> Split-phase · 120/240 V</label>
-              <label><input type="radio" name="panel-type" value="3"> 3-phase Wye · 120/208 V</label>
-            </fieldset>
             <label class="field">
               <span>Количество слотов</span>
               <input id="panel-slots" type="number" min="6" max="168" step="2" value="24" inputmode="numeric">
