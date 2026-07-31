@@ -535,6 +535,23 @@ function resetProject() {
   showMessage("Создан новый расчёт");
 }
 
+function changePanelSystem() {
+  const panelSystem = elements["global-panel-type"].value;
+  if (!SUPPLY_SYSTEMS[panelSystem]) return;
+
+  project.panelSystem = panelSystem;
+  updateCircuitPhaseAvailability();
+  elements["voltage-result"].hidden = true;
+  elements["panel-result"].hidden = true;
+  elements["panel-visual"].replaceChildren();
+
+  try {
+    persist();
+  } catch (error) {
+    showMessage(`Тип панели изменён, но не сохранён: ${error.message}`, true);
+  }
+}
+
 function registerEvents() {
   document.querySelectorAll(".nav-button").forEach((button) => {
     button.addEventListener("click", () => showSection(button.dataset.section));
@@ -547,14 +564,8 @@ function registerEvents() {
     const button = event.target.closest("[data-delete-circuit]");
     if (button) deleteCircuit(button.dataset.deleteCircuit);
   });
-  elements["global-panel-type"].addEventListener("change", () => {
-    project.panelSystem = elements["global-panel-type"].value;
-    persist();
-    updateCircuitPhaseAvailability();
-    elements["voltage-result"].hidden = true;
-    elements["panel-result"].hidden = true;
-    elements["panel-visual"].replaceChildren();
-  });
+  elements["global-panel-type"].addEventListener("input", changePanelSystem);
+  elements["global-panel-type"].addEventListener("change", changePanelSystem);
   elements["global-units"].addEventListener("change", () => {
     project.unitSystem = elements["global-units"].value === "m" ? "m" : "ft";
     persist();
