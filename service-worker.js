@@ -1,4 +1,4 @@
-const CACHE_NAME = "calcuvolt-nec-2023-v1";
+const CACHE_NAME = "calcuvolt-nec-2023-v2";
 const APP_FILES = [
   "./",
   "./index.html",
