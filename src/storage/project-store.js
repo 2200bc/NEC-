@@ -1,9 +1,9 @@
 import { SUPPLY_SYSTEMS, WIRE_TABLE } from "../data/nec.js";
 
-const STORAGE_KEY = "calcuvolt-project-v4";
-const PREVIOUS_KEYS = ["calcuvolt-project-v3", "calcuvolt-project-v2"];
+const STORAGE_KEY = "calcuvolt-project-v5";
+const PREVIOUS_KEYS = ["calcuvolt-project-v4", "calcuvolt-project-v3", "calcuvolt-project-v2"];
 const LEGACY_KEY = "lines";
-export const PROJECT_VERSION = 4;
+export const PROJECT_VERSION = 5;
 const WIRE_SIZES = new Set(WIRE_TABLE.map((wire) => wire.size));
 const WIRE_ALIASES = Object.freeze({
   "1/0": "1/0 AWG",
@@ -83,7 +83,7 @@ function normalizeCircuit(raw, index, defaults) {
 export function emptyProject() {
   return {
     version: PROJECT_VERSION,
-    panelType: 1,
+    panelSystem: "single-120-208",
     unitSystem: "ft",
     circuits: []
   };
@@ -91,14 +91,16 @@ export function emptyProject() {
 
 export function validateProject(raw) {
   if (Array.isArray(raw)) {
-    raw = { circuits: raw, panelType: 1, unitSystem: "ft" };
+    raw = { circuits: raw, panelSystem: "single-120-208", unitSystem: "ft" };
   }
   if (!raw || typeof raw !== "object") throw new TypeError("Проект должен быть объектом или legacy-массивом");
   if (!Array.isArray(raw.circuits)) throw new TypeError("Поле circuits должно быть массивом");
 
-  const panelType = [1, 3].includes(Number(raw.panelType))
-    ? Number(raw.panelType)
-    : (SUPPLY_SYSTEMS[raw.supplySystem]?.phases ?? 1);
+  const panelSystem = SUPPLY_SYSTEMS[raw.panelSystem]
+    ? raw.panelSystem
+    : (Number(raw.panelType) === 3 || SUPPLY_SYSTEMS[raw.supplySystem]?.phases === 3
+      ? "three-120-208"
+      : "single-120-208");
   const unitSystem = raw.unitSystem === "m" || raw.system === "eu" ? "m" : "ft";
   const circuits = raw.circuits.map((circuit, index) =>
     normalizeCircuit(circuit, index, { unitSystem })
@@ -106,7 +108,7 @@ export function validateProject(raw) {
   if (new Set(circuits.map((circuit) => circuit.id)).size !== circuits.length) {
     throw new RangeError("Идентификаторы цепей должны быть уникальными");
   }
-  return { version: PROJECT_VERSION, panelType, unitSystem, circuits };
+  return { version: PROJECT_VERSION, panelSystem, unitSystem, circuits };
 }
 
 export function loadProject(storage = globalThis.localStorage) {

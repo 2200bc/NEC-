@@ -1,4 +1,4 @@
-import { NEC_DATASET, RACEWAY_TOTAL_AREA, WIRE_TABLE } from "./src/data/nec.js";
+import { NEC_DATASET, RACEWAY_TOTAL_AREA, SUPPLY_SYSTEMS, WIRE_TABLE } from "./src/data/nec.js";
 import { selectWireSize } from "./src/domain/conductors.js";
 import { calculateDerating } from "./src/domain/derating.js";
 import { layoutPanel } from "./src/domain/panel.js";
@@ -78,7 +78,7 @@ function updateNeutralControl() {
 
 function updateCircuitPhaseAvailability() {
   const threePole = document.querySelector('input[name="phase"][value="3"]');
-  threePole.disabled = project.panelType === 1;
+  threePole.disabled = SUPPLY_SYSTEMS[project.panelSystem].phases === 1;
   if (threePole.disabled && threePole.checked) {
     document.querySelector('input[name="phase"][value="1"]').checked = true;
     updateNeutralControl();
@@ -195,7 +195,7 @@ function renderWireOptions() {
 }
 
 function renderAll() {
-  elements["global-panel-type"].value = String(project.panelType);
+  elements["global-panel-type"].value = project.panelSystem;
   elements["global-units"].value = project.unitSystem;
   updateCircuitPhaseAvailability();
   setUnitLabels();
@@ -301,11 +301,12 @@ function calculateVoltageFromForm() {
   if (!circuit) return showMessage("Выберите цепь для расчёта", true);
 
   try {
-    if (project.panelType === 1 && circuit.phase === 3) {
-      throw new RangeError("Трёхполюсная цепь недопустима в split-phase панели");
+    const panelType = SUPPLY_SYSTEMS[project.panelSystem].phases;
+    if (panelType === 1 && circuit.phase === 3) {
+      throw new RangeError("Трёхполюсная цепь недопустима в однофазной панели");
     }
     const result = calculateVoltageDrop({
-      supplySystem: project.panelType === 3 ? "three-120-208" : "single-120-240",
+      supplySystem: project.panelSystem,
       phase: circuit.phase,
       length: elements["voltage-length"].value,
       lengthUnit: circuit.lengthUnit,
@@ -373,7 +374,7 @@ function panelCell(slotNumber, entry) {
 
 function renderPanelFromForm() {
   try {
-    const panelType = project.panelType;
+    const panelType = SUPPLY_SYSTEMS[project.panelSystem].phases;
     const result = layoutPanel({
       circuits: project.circuits,
       panelType,
@@ -404,7 +405,7 @@ function renderPanelFromForm() {
     const table = document.createElement("table");
     table.className = "panel-table";
     const caption = document.createElement("caption");
-    caption.textContent = `${panelType === 3 ? "3-phase Wye" : "Split-phase"} panel`;
+    caption.textContent = `${SUPPLY_SYSTEMS[project.panelSystem].label} panel`;
     const head = document.createElement("thead");
     const headRow = document.createElement("tr");
     ["#", "Нагрузка", "Фаза", "#", "Нагрузка", "Фаза"].forEach((label) => {
@@ -435,8 +436,8 @@ function addCircuit(event) {
   try {
     const amps = Number(elements["line-amps"].value);
     const phase = Number(document.querySelector('input[name="phase"]:checked').value);
-    if (project.panelType === 1 && phase === 3) {
-      throw new RangeError("Трёхполюсная цепь недопустима в split-phase панели");
+    if (SUPPLY_SYSTEMS[project.panelSystem].phases === 1 && phase === 3) {
+      throw new RangeError("Трёхполюсная цепь недопустима в однофазной панели");
     }
     const neutral = phase === 1 || elements["line-neutral-ccc"].checked;
     const sizingOptions = {
@@ -547,7 +548,7 @@ function registerEvents() {
     if (button) deleteCircuit(button.dataset.deleteCircuit);
   });
   elements["global-panel-type"].addEventListener("change", () => {
-    project.panelType = Number(elements["global-panel-type"].value);
+    project.panelSystem = elements["global-panel-type"].value;
     persist();
     updateCircuitPhaseAvailability();
     elements["voltage-result"].hidden = true;

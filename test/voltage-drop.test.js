@@ -5,6 +5,8 @@ import { calculateVoltageDrop, systemVoltage } from "../src/domain/voltage-drop.
 test("supported supply systems select line-neutral and line-line voltage", () => {
   assert.equal(systemVoltage("single-120-240", 1), 120);
   assert.equal(systemVoltage("single-120-240", 2), 240);
+  assert.equal(systemVoltage("single-120-208", 1), 120);
+  assert.equal(systemVoltage("single-120-208", 2), 208);
   assert.equal(systemVoltage("three-120-208", 3), 208);
   assert.equal(systemVoltage("three-277-480", 1), 277);
 });

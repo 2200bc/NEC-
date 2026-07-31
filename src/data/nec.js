@@ -94,6 +94,7 @@ export const RACEWAY_TOTAL_AREA = Object.freeze({
 
 export const SUPPLY_SYSTEMS = Object.freeze({
   "single-120-240": { label: "1φ · 120/240 V", phases: 1, lineNeutral: 120, lineLine: 240 },
+  "single-120-208": { label: "1φ Network · 120/208 V", phases: 1, lineNeutral: 120, lineLine: 208 },
   "three-120-208": { label: "3φ Wye · 120/208 V", phases: 3, lineNeutral: 120, lineLine: 208 },
   "three-277-480": { label: "3φ Wye · 277/480 V", phases: 3, lineNeutral: 277, lineLine: 480 }
 });
