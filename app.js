@@ -1,774 +1,595 @@
-let lines = JSON.parse(localStorage.getItem('lines') || '[]');
+import { NEC_DATASET, RACEWAY_TOTAL_AREA, SUPPLY_SYSTEMS, WIRE_TABLE } from "./src/data/nec.js";
+import { selectWireSize } from "./src/domain/conductors.js";
+import { calculateDerating } from "./src/domain/derating.js";
+import { layoutPanel } from "./src/domain/panel.js";
+import { calculateVoltageDrop } from "./src/domain/voltage-drop.js";
+import {
+  clearProject,
+  emptyProject,
+  loadProject,
+  saveProject,
+  validateProject
+} from "./src/storage/project-store.js";
 
-const wireAmpacityTable = [
-  { size: "14 AWG", ampacity: 20, area: 0.013, cma: 4110 },
-  { size: "12 AWG", ampacity: 25, area: 0.020, cma: 6530 },
-  { size: "10 AWG", ampacity: 35, area: 0.031, cma: 10380 },
-  { size: "8 AWG", ampacity: 50, area: 0.050, cma: 16510 },
-  { size: "6 AWG", ampacity: 65, area: 0.085, cma: 26240 },
-  { size: "4 AWG", ampacity: 85, area: 0.136, cma: 41740 },
-  { size: "3 AWG", ampacity: 100, area: 0.160, cma: 52620 },
-  { size: "2 AWG", ampacity: 115, area: 0.208, cma: 66360 },
-  { size: "1 AWG", ampacity: 130, area: 0.262, cma: 83690 },
-  { size: "1/0", ampacity: 150, area: 0.330, cma: 105500 },
-  { size: "2/0", ampacity: 175, area: 0.384, cma: 133100 },
-  { size: "3/0", ampacity: 200, area: 0.460, cma: 167800 },
-  { size: "4/0", ampacity: 230, area: 0.554, cma: 211600 },
-  { size: "250 MCM", ampacity: 255, area: 0.677, cma: 250000 },
-  { size: "300 MCM", ampacity: 285, area: 0.777, cma: 300000 },
-  { size: "350 MCM", ampacity: 310, area: 0.877, cma: 350000 },
-  { size: "400 MCM", ampacity: 335, area: 0.977, cma: 400000 },
-  { size: "500 MCM", ampacity: 380, area: 1.177, cma: 500000 },
-  { size: "600 MCM", ampacity: 420, area: 1.382, cma: 600000 },
-  { size: "700 MCM", ampacity: 460, area: 1.586, cma: 700000 },
-  { size: "750 MCM", ampacity: 475, area: 1.683, cma: 750000 },
-  { size: "800 MCM", ampacity: 490, area: 1.780, cma: 800000 },
-  { size: "900 MCM", ampacity: 520, area: 1.975, cma: 900000 },
-  { size: "1000 MCM", ampacity: 545, area: 2.170, cma: 1000000 }
-];
+const elements = Object.fromEntries(
+  [
+    "app-message", "global-system", "global-units", "line-form", "line-name", "line-amps", "line-length",
+    "line-length-label", "line-neutral", "line-neutral-ccc", "line-material", "line-insulation-temp",
+    "line-terminal-temp", "line-ambient", "line-continuous", "line-circuit-type",
+    "line-count", "line-list", "conduit-type",
+    "conduit-size", "derating-lines-list", "calculate-derating", "derating-result",
+    "ground-wire", "ground-count", "conduit-nipple",
+    "voltage-line", "voltage-material", "voltage-length", "voltage-length-label",
+    "voltage-wire", "voltage-actual-amps", "voltage-upstream-drop", "calculate-voltage", "voltage-result",
+    "panel-slots", "render-panel", "print-panel", "panel-result", "panel-visual",
+    "export-data", "import-data", "import-file", "reset-data"
+  ].map((id) => [id, document.getElementById(id)])
+);
 
-const wireAmpacityTable90C = [
-  { size: "14 AWG", ampacity: 25 },
-  { size: "12 AWG", ampacity: 30 },
-  { size: "10 AWG", ampacity: 40 },
-  { size: "8 AWG", ampacity: 55 },
-  { size: "6 AWG", ampacity: 75 },
-  { size: "4 AWG", ampacity: 95 },
-  { size: "3 AWG", ampacity: 110 },
-  { size: "2 AWG", ampacity: 130 },
-  { size: "1 AWG", ampacity: 150 },
-  { size: "1/0", ampacity: 170 },
-  { size: "2/0", ampacity: 195 },
-  { size: "3/0", ampacity: 225 },
-  { size: "4/0", ampacity: 260 },
-  { size: "250 MCM", ampacity: 290 },
-  { size: "300 MCM", ampacity: 320 },
-  { size: "350 MCM", ampacity: 350 },
-  { size: "400 MCM", ampacity: 380 },
-  { size: "500 MCM", ampacity: 430 },
-  { size: "600 MCM", ampacity: 475 },
-  { size: "700 MCM", ampacity: 520 },
-  { size: "750 MCM", ampacity: 535 },
-  { size: "800 MCM", ampacity: 555 },
-  { size: "900 MCM", ampacity: 585 },
-  { size: "1000 MCM", ampacity: 615 }
-];
+let project = loadProject();
+let messageTimer;
 
-const conduitFillTable = {
-  EMT: { "0.5": 0.122, "0.75": 0.213, "1": 0.346, "1.25": 0.598, "1.5": 0.814, "2": 1.342, "2.5": 2.206, "3": 3.356, "3.5": 4.581, "4": 5.942 },
-  PVC: { "0.5": 0.147, "0.75": 0.253, "1": 0.436, "1.25": 0.771, "1.5": 1.094, "2": 1.860, "2.5": 3.020, "3": 4.360, "3.5": 5.950, "4": 7.760 },
-  IMC: { "1": 0.380, "1.25": 0.640, "1.5": 0.860, "2": 1.400, "2.5": 2.340, "3": 3.550 },
-  RMC: { "1": 0.380, "1.25": 0.640, "1.5": 0.860, "2": 1.400, "2.5": 2.340, "3": 3.550 },
-  ENT: { "1": 0.350, "1.25": 0.600, "1.5": 0.800, "2": 1.300 }
-};
-
-function updateUnits() {
-  const system = document.getElementById("global-system").value;
-
-  // поле добавления линии
-  const addInput = document.getElementById("line-length");
-  if (addInput) {
-    addInput.placeholder = system === "eu" ? "Длина (метры)" : "Длина (футы)";
-  }
-
-  // поле во вкладке падения напряжения
-  const voltageInput = document.getElementById("voltage-length");
-  if (voltageInput) {
-    voltageInput.placeholder = system === "eu" ? "например: 20 м" : "например: 50 ft";
-  }
+function createId() {
+  return globalThis.crypto?.randomUUID?.() ?? `circuit-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-
-
-
-function getWireSize(amps) {
-  for (let i = 0; i < wireAmpacityTable.length; i++) {
-    const wire = wireAmpacityTable[i];
-    if (wire.size === "14 AWG") continue; // Исключаем 14 AWG
-    if (amps <= wire.ampacity) return wire.size;
-  }
-  return "больше 1000 MCM";
+function showMessage(message, isError = false) {
+  clearTimeout(messageTimer);
+  elements["app-message"].textContent = message;
+  elements["app-message"].classList.toggle("is-error", isError);
+  elements["app-message"].hidden = false;
+  messageTimer = setTimeout(() => {
+    elements["app-message"].hidden = true;
+  }, 6000);
 }
 
-function getWireSizeDerated(amps) {
-  for (let i = 0; i < wireAmpacityTable90C.length; i++) {
-    const wire = wireAmpacityTable90C[i];
-    if (wire.size === "14 AWG") continue; // Исключаем 14 AWG
-    if (amps <= wire.ampacity) return wire.size;
-  }
-  return "больше 1000 MCM";
+function persist() {
+  project = saveProject(project);
 }
 
-
-function getWireArea(size) {
-  const entry = wireAmpacityTable.find(e => e.size === size);
-  return entry ? entry.area : 0.01;
-}
-function addLine() {
-  const name = document.getElementById('line-name').value.trim();
-  const amps = parseFloat(document.getElementById('line-amps').value);
-  const length = parseFloat(document.getElementById('line-length').value);
-  const phase = document.querySelector('input[name="phase"]:checked').value;
-  const neutral = document.getElementById('line-neutral').checked;
-
-  if (!name || isNaN(amps)) return alert("Заполни имя и ампераж");
-
-  const wireSize = getWireSize(amps);
-  const line = { name, amps, phase, neutral, wireSize };
-
-  if (!isNaN(length)) line.length = length;
-
-  lines.push(line);
-  localStorage.setItem('lines', JSON.stringify(lines));
-  renderLines();
-  updateSelectors();
-
-  document.getElementById('line-name').value = '';
-  document.getElementById('line-amps').value = '';
-  document.getElementById('line-length').value = '';
-  document.querySelector('input[name="phase"][value="1"]').checked = true;
-  document.getElementById('line-neutral').checked = false;
-  updateNeutral();
-}
-
-
-
-function deleteLine(index) {
-  if (!confirm("Удалить линию?")) return;
-  lines.splice(index, 1);
-  localStorage.setItem('lines', JSON.stringify(lines));
-  renderLines();
-  updateSelectors();
-}
-
-function renderLines() {
-  const container = document.getElementById('line-list');
-  container.innerHTML = "";
-  const system = document.getElementById("global-system").value;
-  const unit = system === "eu" ? "м" : "ft";
-
-  lines.forEach((line, i) => {
-    const phaseText =
-      line.phase === "1" ? "1 фаза" :
-      line.phase === "2" ? "2 фазы" :
-      "3 фазы";
-    const neutralText = line.neutral ? ", с нейтралью" : "";
-    const lengthText = line.length ? `, ${parseFloat(line.length).toFixed(1)}${unit}` : "";
-
-    const div = document.createElement("div");
-    div.innerHTML = `${line.name}: ${line.amps}А, ${phaseText}${neutralText}${lengthText} → ${line.wireSize}
-      <button onclick="deleteLine(${i})">Удалить</button>`;
-    container.appendChild(div);
+function showSection(sectionName) {
+  document.querySelectorAll(".section").forEach((section) => {
+    section.hidden = section.id !== `section-${sectionName}`;
+  });
+  document.querySelectorAll(".nav-button").forEach((button) => {
+    const active = button.dataset.section === sectionName;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-current", active ? "page" : "false");
   });
 }
 
-
-
-
-
-function updateSystemOptions() {
-  const system = document.getElementById("global-system").value;
-  const phaseSelect = document.getElementById("phase-select");
-  const voltageSelect = document.getElementById("voltage-select");
-
-  if (!phaseSelect || !voltageSelect) return;
-
-  // Очищаем старые опции
-  phaseSelect.innerHTML = "";
-  voltageSelect.innerHTML = "";
-
-  if (system === "us") {
-    phaseSelect.innerHTML += `<option value="1Ø">1Ø + N</option>`;
-    phaseSelect.innerHTML += `<option value="2Ø">2Ø</option>`;
-    phaseSelect.innerHTML += `<option value="3Ø">3Ø + N</option>`;
-
-    voltageSelect.innerHTML += `<option value="120">120 В</option>`;
-    voltageSelect.innerHTML += `<option value="208">208 В</option>`;
-    voltageSelect.innerHTML += `<option value="240">240 В</option>`;
-  } else if (system === "eu") {
-    phaseSelect.innerHTML += `<option value="1Ø">1Ø + N</option>`;
-    phaseSelect.innerHTML += `<option value="3Ø">3Ø + N</option>`;
-
-    voltageSelect.innerHTML += `<option value="230">230 В</option>`;
-    voltageSelect.innerHTML += `<option value="400">400 В</option>`;
+function setUnitLabels() {
+  const unit = project.unitSystem;
+  elements["line-length-label"].textContent = `Длина, ${unit}`;
+  if (!elements["voltage-line"].value) {
+    elements["voltage-length-label"].textContent = `Длина, ${unit}`;
   }
-  updateUnits();
-
 }
 
-
-
-
-function updateSelectors() {
-  const derList = document.getElementById('derating-lines-list');
-  const vSel = document.getElementById('voltage-line');
-  derList.innerHTML = "";
-  vSel.innerHTML = "";
-
-  // Добавляем дефолтный пункт
-  const defaultOption = new Option("Выберите линию", "");
-  vSel.appendChild(defaultOption);
-
-  lines.forEach((line, i) => {
-    const label = document.createElement("label");
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.value = i;
-    label.appendChild(checkbox);
-    const neutralText = line.neutral ? "+N" : "";
-    const phaseText = line.phase === "3" ? `3Ø${neutralText}` : `1Ø${neutralText}`;
-    label.appendChild(document.createTextNode(` ${line.amps}A — ${phaseText} — ${line.name}`));
-    derList.appendChild(label);
-    derList.appendChild(document.createElement("br"));
-
-    const opt = new Option(`${line.name}`, i);
-    vSel.appendChild(opt);
-  });
+function updateNeutralControl() {
+  const phase = Number(document.querySelector('input[name="phase"]:checked').value);
+  if (phase === 1) {
+    elements["line-neutral"].checked = true;
+    elements["line-neutral"].disabled = true;
+    elements["line-neutral-ccc"].checked = true;
+    elements["line-neutral-ccc"].disabled = true;
+  } else {
+    elements["line-neutral"].disabled = false;
+    elements["line-neutral-ccc"].disabled = !elements["line-neutral"].checked;
+    if (!elements["line-neutral"].checked) elements["line-neutral-ccc"].checked = false;
+  }
 }
 
-function updateVoltageDefaults() {
-  const index = document.getElementById("voltage-line").value;
-  const line = lines[index];
-  const resultEl = document.getElementById("voltage-result");
+function circuitMeta(circuit) {
+  const length = circuit.length ? ` · ${circuit.length} ${circuit.lengthUnit}` : "";
+  const neutral = circuit.neutral ? ` + N${circuit.neutralCurrentCarrying ? " (CCC)" : ""}` : "";
+  const load = circuit.continuous ? " · continuous 125%" : "";
+  return `${circuit.amps} A${load} · ${circuit.phase}-pole${neutral}${length} · ${circuit.wireSize} ${circuit.material === "aluminum" ? "Al" : "Cu"} · ${circuit.terminalTemp}°C terminals`;
+}
 
-  if (!line) {
-    resultEl.textContent = "";
+function renderCircuitList() {
+  elements["line-count"].textContent = String(project.circuits.length);
+  elements["line-list"].replaceChildren();
+
+  if (project.circuits.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "Цепей пока нет. Добавьте первую цепь выше.";
+    elements["line-list"].append(empty);
     return;
   }
 
-  const system = document.getElementById("global-system").value;
-  const lengthField = document.getElementById("voltage-length");
-  const overrideSelect = document.getElementById("voltage-override");
-  const actualInput = document.getElementById("voltage-actual-amps");
+  for (const circuit of project.circuits) {
+    const item = document.createElement("article");
+    item.className = "circuit-item";
 
-  // Длина
-  if (line.length) {
-    lengthField.value = line.length;
-  } else {
-    lengthField.value = "";
-  }
+    const details = document.createElement("div");
+    const heading = document.createElement("h4");
+    heading.textContent = circuit.name;
+    const meta = document.createElement("div");
+    meta.className = "circuit-meta";
+    meta.textContent = circuitMeta(circuit);
+    details.append(heading, meta);
 
-  // Обновляем плейсхолдер
-  lengthField.placeholder = system === "eu" ? "например: 20 м" : "например: 50 ft";
-
-  // Провод
-  if (overrideSelect && line.wireSize) {
-    overrideSelect.value = line.wireSize;
-  }
-
-  // Ток
-  if (actualInput) {
-    actualInput.placeholder = `По умолчанию: ${line.amps}А`;
-    actualInput.value = "";
-  }
-
-  // Базовая информация
-  const phaseText =
-    line.phase === "1" ? "1 фаза" :
-    line.phase === "2" ? "2 фазы" :
-    "3 фазы";
-  const neutralText = line.neutral ? "с нейтралью" : "без нейтрали";
-
-  let voltage = 120;
-  if (system === "us") {
-    if (line.phase === "3") voltage = 208;
-    else if (line.phase === "2") voltage = line.neutral ? 240 : 208;
-    else voltage = 120;
-  } else {
-    voltage = line.phase === "3" ? 400 : 230;
-  }
-
-  resultEl.style.color = "inherit";
-  resultEl.textContent = `🔧 ${phaseText}, ${neutralText}, ${line.amps}А\nСистема: ${system === "us" ? "Американская" : "Европейская"}, напряжение: ${voltage} В\nПровод: ${line.wireSize}`;
-}
-
-
-
-
-
-function showSection(id) {
-  document.querySelectorAll('.section').forEach(sec => sec.classList.add('hidden'));
-  document.getElementById('section-' + id).classList.remove('hidden');
-}
-function updateNeutral() {
-  const phase = document.querySelector('input[name="phase"]:checked').value;
-  const neutralCheckbox = document.getElementById('line-neutral');
-  if (phase === "1") {
-    neutralCheckbox.checked = true;
-    neutralCheckbox.disabled = true;
-  } else {
-    neutralCheckbox.disabled = false;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "Удалить";
+    remove.dataset.deleteCircuit = circuit.id;
+    remove.setAttribute("aria-label", `Удалить цепь ${circuit.name}`);
+    item.append(details, remove);
+    elements["line-list"].append(item);
   }
 }
 
-function calculateDerating() {
-  const checkboxes = document.querySelectorAll('#derating-lines-list input[type=checkbox]');
-  const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => lines[cb.value]);
-  const type = document.getElementById('conduit-type').value;
-  const size = document.getElementById('conduit-size').value;
-  const maxFill = conduitFillTable[type]?.[size] || 1;
+function appendOption(select, value, label, selected = false) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = label;
+  option.selected = selected;
+  select.append(option);
+}
 
-  let totalArea = 0;
-  let conductorCount = 0;
-  let result = "";
-
-  selected.forEach(line => {
-    let count = 0;
-    if (line.phase === "1") count = 1;
-    else if (line.phase === "2") count = 2;
-    else if (line.phase === "3") count = 3;
-    if (line.neutral) count += 1;
-
-    conductorCount += count;
-    totalArea += getWireArea(line.wireSize) * count;
+function renderConduitOptions() {
+  const previousType = elements["conduit-type"].value;
+  elements["conduit-type"].replaceChildren();
+  Object.keys(RACEWAY_TOTAL_AREA).forEach((type) => {
+    appendOption(elements["conduit-type"], type, type, type === previousType);
   });
+  renderConduitSizes();
+}
 
-  let factor = 1.0;
-  if (conductorCount > 3 && conductorCount <= 6) factor = 0.8;
-  else if (conductorCount <= 9) factor = 0.7;
-  else if (conductorCount <= 20) factor = 0.5;
-  else factor = 0.45;
-
-  const fillPercent = ((totalArea / maxFill) * 100).toFixed(1);
-  result += `Жил: ${conductorCount}, коэфф: ${factor}, Загрузка трубы: ${fillPercent}% (${fillPercent <= 100 ? "OK" : "ПЕРЕПОЛНЕНО"})\n\n`;
-
-  selected.forEach(line => {
-    const newSize = getWireSizeDerated(line.amps / factor);
-    result += `${line.name}: был ${line.wireSize} → нужен ${newSize}\n`;
+function renderConduitSizes() {
+  const type = elements["conduit-type"].value;
+  const previousSize = elements["conduit-size"].value;
+  elements["conduit-size"].replaceChildren();
+  Object.keys(RACEWAY_TOTAL_AREA[type] ?? {}).sort((a, b) => Number(a) - Number(b)).forEach((size) => {
+    appendOption(elements["conduit-size"], size, `${size}″`, size === previousSize);
   });
-
-  const resEl = document.getElementById('derating-result');
-  resEl.textContent = result;
-  resEl.style.color = fillPercent > 100 ? "red" : "inherit";
 }
 
-
-function calculateVoltageDrop() {
-  const index = document.getElementById("voltage-line").value;
-  if (!lines[index]) return alert("Линия не выбрана");
-
-  const line = lines[index];
-  const system = document.getElementById("global-system").value;
-  const material = document.getElementById("voltage-material").value;
-  let length = parseFloat(document.getElementById("voltage-length").value);
-  if (isNaN(length)) length = line.length;
-  if (!length) return alert("Укажи длину — в поле или при создании линии");
-
-  const override = document.getElementById("voltage-override").value;
-  if (system === "eu") {
-  length *= 3.28084; // метры → футы
-}
-
-  const wireSize = override || line.wireSize;
-  const cma = wireAmpacityTable.find(w => w.size === wireSize)?.cma || 1000;
-  const resistivity = material === "copper" ? 12.9 : 21.2;
-
-  let voltage = 120;
-  let multiplier = 2;
-
-  if (system === "us") {
-    if (line.phase === "3") {
-      voltage = 208;
-      multiplier = Math.sqrt(3);
-    } else if (line.phase === "2") {
-      if (line.neutral) {
-        voltage = 240; // split-phase
-        multiplier = 2;
-      } else {
-        voltage = 208; // между фазами
-        multiplier = 2;
-      }
-    } else {
-      voltage = 120;
-      multiplier = 2;
-    }
-  } else if (system === "eu") {
-    if (line.phase === "3") {
-      voltage = 400;
-      multiplier = Math.sqrt(3);
-    } else {
-      voltage = 230;
-      multiplier = 2;
-    }
-  }
-
-  const actualAmpsInput = document.getElementById("voltage-actual-amps").value;
-const actualAmps = parseFloat(actualAmpsInput) || line.amps;
-
-const VD = (multiplier * length * resistivity * actualAmps) / cma;
-const percent = ((VD / voltage) * 100).toFixed(2);
-
-
-  const resultEl = document.getElementById("voltage-result");
-  let output = "";
-
-  const phaseText =
-    line.phase === "1" ? "1 фаза" :
-    line.phase === "2" ? "2 фазы" :
-    "3 фазы";
-  const neutralText = line.neutral ? "с нейтралью" : "без нейтрали";
-  output += `Система: ${system === "us" ? "Американская" : "Европейская"}, напряжение: ${voltage} В\n`;
-
-
-  output += `🔧 ${phaseText}, ${neutralText}, ${line.amps}А\n`;
-  output += `Система: ${system === "us" ? "Американская" : "Европейская"}, напряжение: ${voltage} В\n`;
-  output += `\n📐 Формула: ${multiplier === Math.sqrt(3) ? "√3 × L × R × I / CMA" : "2 × L × R × I / CMA"}\n`;
-  output += `→ Падение: ${VD.toFixed(2)} В (${percent}%)`;
-
-  if (percent > 3) {
-    resultEl.style.color = "red";
-    output += `\n⚠️ Превышение допустимого 3% по NEC!`;
-    const recommended = wireAmpacityTable.find(w =>
-      (multiplier * length * resistivity * line.amps) / w.cma / voltage < 0.03
+function renderCircuitSelectors() {
+  const previousVoltageCircuit = elements["voltage-line"].value;
+  elements["voltage-line"].replaceChildren();
+  appendOption(elements["voltage-line"], "", "Выберите цепь");
+  for (const circuit of project.circuits) {
+    appendOption(
+      elements["voltage-line"],
+      circuit.id,
+      `${circuit.name} · ${circuit.amps} A`,
+      circuit.id === previousVoltageCircuit
     );
-    if (recommended) {
-      output += `\n💡 Рекомендуемый размер: ${recommended.size}`;
-    } else {
-      output += `\n❗ Нет подходящего провода для 3%`;
-    }
+  }
+
+  elements["derating-lines-list"].replaceChildren();
+  if (project.circuits.length === 0) {
+    const text = document.createElement("p");
+    text.className = "circuit-meta";
+    text.textContent = "Сначала добавьте цепи.";
+    elements["derating-lines-list"].append(text);
   } else {
-    resultEl.style.color = "inherit";
-  }
-
-  resultEl.textContent = output;
-}
-
-
-
-function legacybalancePanel() {
-  const type = document.querySelector('input[name="panel-type"]:checked').value;
-  const slots = parseInt(document.getElementById("panel-slots").value);
-  const result = document.getElementById("panel-result");
-  if (!slots || slots < 6) return result.textContent = "Нужно минимум 6 слотов для трёхфазных линий";
-
-  const slotMap = new Array(slots).fill(null);
-  let phaseLoad = { A: 0, B: 0, C: 0 };
-
-  const slotPhase = slot => {
-    const pos = Math.floor(slot / 2) % 3;
-    return ['A', 'B', 'C'][pos];
-  };
-
-  const getPhaseTriplet = () => {
-    for (let i = 0; i <= slots - 6; i += 2) {
-      const s1 = i;
-      const s2 = i + 2;
-      const s3 = i + 4;
-      if (!slotMap[s1] && !slotMap[s2] && !slotMap[s3]) {
-        return [s1, s2, s3];
-      }
-    }
-    return null;
-  };
-
-  let pointer = 0;
-  const sorted = [...lines].sort((a, b) => b.amps - a.amps);
-
-  for (const line of sorted) {
-    if (line.phase === "3") {
-      const group = getPhaseTriplet();
-      if (!group) continue;
-      group.forEach(i => slotMap[i] = `${i + 1}`);
-      phaseLoad.A += line.amps;
-      phaseLoad.B += line.amps;
-      phaseLoad.C += line.amps;
-      slotMap[group[0]] = `${group.map(i => i + 1).join(',')}: ${line.name} → фазы A+B+C`;
-    } else {
-      while (pointer < slots && slotMap[pointer]) pointer++;
-      if (pointer >= slots) break;
-      const phase = slotPhase(pointer);
-      slotMap[pointer] = `${pointer + 1}: ${line.name} → фаза ${phase}`;
-      phaseLoad[phase] += line.amps;
+    for (const circuit of project.circuits) {
+      const label = document.createElement("label");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = circuit.id;
+      const text = document.createElement("span");
+      text.textContent = `${circuit.name} · ${circuitMeta(circuit)}`;
+      label.append(checkbox, text);
+      elements["derating-lines-list"].append(label);
     }
   }
-
-  const max = Math.max(phaseLoad.A, phaseLoad.B, phaseLoad.C);
-  const min = Math.min(phaseLoad.A, phaseLoad.B, phaseLoad.C);
-  const delta = max - min;
-  const unbalance = delta > 0.2 * max ? "⚠️ Перекос фаз!" : "";
-
-  const output = slotMap.filter(Boolean).join("\n") +
-    `\n\nНагрузка: A=${phaseLoad.A}А, B=${phaseLoad.B}А, C=${phaseLoad.C}А\n${unbalance}`;
-  result.textContent = output;
 }
-function resetCalculator() {
-  if (confirm("Очистить все данные и начать заново?")) {
-    lines = [];
-    localStorage.removeItem('lines');
-    renderLines();
-    updateSelectors();
-    document.getElementById('derating-result').textContent = "";
-    document.getElementById('voltage-result').textContent = "";
-    document.getElementById('panel-result').textContent = "";
+
+function renderWireOptions() {
+  elements["voltage-wire"].replaceChildren();
+  elements["ground-wire"].replaceChildren();
+  WIRE_TABLE.forEach((wire) => {
+    appendOption(elements["voltage-wire"], wire.size, wire.size);
+    appendOption(elements["ground-wire"], wire.size, wire.size, wire.size === "12 AWG");
+  });
+}
+
+function renderAll() {
+  elements["global-system"].value = project.supplySystem;
+  elements["global-units"].value = project.unitSystem;
+  const panelPhases = SUPPLY_SYSTEMS[project.supplySystem].phases;
+  const panelRadio = document.querySelector(`input[name="panel-type"][value="${panelPhases}"]`);
+  if (panelRadio) panelRadio.checked = true;
+  setUnitLabels();
+  renderCircuitList();
+  renderCircuitSelectors();
+}
+
+function metric(label, value) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "metric";
+  const caption = document.createElement("span");
+  caption.textContent = label;
+  const strong = document.createElement("strong");
+  strong.textContent = value;
+  wrapper.append(caption, strong);
+  return wrapper;
+}
+
+function resultHeading(container, title) {
+  const heading = document.createElement("h3");
+  heading.textContent = title;
+  container.append(heading);
+}
+
+function resetResult(container) {
+  container.replaceChildren();
+  container.hidden = false;
+  container.classList.remove("is-warning", "is-danger");
+}
+
+function selectedCircuit() {
+  return project.circuits.find((circuit) => circuit.id === elements["voltage-line"].value);
+}
+
+function updateVoltageDefaults() {
+  const circuit = selectedCircuit();
+  elements["voltage-result"].hidden = true;
+  if (!circuit) {
+    elements["voltage-length"].value = "";
+    elements["voltage-actual-amps"].value = "";
+    setUnitLabels();
+    return;
+  }
+
+  elements["voltage-length"].value = circuit.length ?? "";
+  elements["voltage-length-label"].textContent = `Длина, ${circuit.lengthUnit}`;
+  elements["voltage-wire"].value = circuit.wireSize;
+  elements["voltage-actual-amps"].value = circuit.amps;
+  elements["voltage-material"].value = circuit.material;
+}
+
+function calculateDeratingFromForm() {
+  try {
+    const selectedIds = new Set(
+      [...elements["derating-lines-list"].querySelectorAll('input[type="checkbox"]:checked')]
+        .map((checkbox) => checkbox.value)
+    );
+    const result = calculateDerating({
+      circuits: project.circuits.filter((circuit) => selectedIds.has(circuit.id)),
+      conduitType: elements["conduit-type"].value,
+      conduitSize: elements["conduit-size"].value,
+      groundWireSize: elements["ground-wire"].value,
+      groundCount: Number(elements["ground-count"].value),
+      nipple: elements["conduit-nipple"].checked
+    });
+
+    const container = elements["derating-result"];
+    resetResult(container);
+    container.classList.toggle("is-danger", result.overfilled);
+    resultHeading(container, result.overfilled ? "Труба переполнена" : "Расчёт заполнения");
+
+    const grid = document.createElement("div");
+    grid.className = "result-grid";
+    grid.append(
+      metric("Токонесущих · 310.15(C)", String(result.currentCarryingCount)),
+      metric("Всего в raceway", String(result.installedConductorCount)),
+      metric("Adjustment factor", result.adjustmentFactor.toFixed(2)),
+      metric("Допустимое заполнение", `${(result.fillLimit * 100).toFixed(0)}%`),
+      metric("Заполнение лимита", `${result.fillPercentOfAllowed.toFixed(1)}%`)
+    );
+    container.append(grid);
+
+    const list = document.createElement("ul");
+    list.className = "result-list";
+    result.circuits.forEach((circuit) => {
+      const item = document.createElement("li");
+      item.textContent = `${circuit.name}: ${circuit.originalSize} → ${circuit.requiredSize ?? "больше 1000 kcmil"} · allowable ${circuit.allowableAmpacity.toFixed(1)} A${circuit.originalPasses ? "" : " · исходный размер не проходит"}`;
+      list.append(item);
+    });
+    result.references.forEach((reference) => {
+      const item = document.createElement("li");
+      item.textContent = `NEC 2023: ${reference}`;
+      list.append(item);
+    });
+    container.append(list);
+  } catch (error) {
+    showMessage(error.message, true);
   }
 }
-function exportData() {
-  const blob = new Blob([JSON.stringify(lines, null, 2)], { type: "application/json" });
+
+function calculateVoltageFromForm() {
+  const circuit = selectedCircuit();
+  if (!circuit) return showMessage("Выберите цепь для расчёта", true);
+
+  try {
+    const result = calculateVoltageDrop({
+      supplySystem: circuit.supplySystem,
+      phase: circuit.phase,
+      length: elements["voltage-length"].value,
+      lengthUnit: circuit.lengthUnit,
+      material: elements["voltage-material"].value,
+      wireSize: elements["voltage-wire"].value,
+      amps: elements["voltage-actual-amps"].value || circuit.amps,
+      upstreamDropPercent: elements["voltage-upstream-drop"].value || 0,
+      circuitType: circuit.circuitType,
+      ampacityOptions: circuit
+    });
+
+    const container = elements["voltage-result"];
+    resetResult(container);
+    const voltageWarning = result.exceedsBranchRecommendation || result.exceedsCombinedRecommendation;
+    container.classList.toggle("is-warning", voltageWarning);
+    resultHeading(container, voltageWarning ? "Рекомендуемый предел превышен" : "Падение в рекомендуемых пределах");
+
+    const grid = document.createElement("div");
+    grid.className = "result-grid";
+    grid.append(
+      metric("Рабочее напряжение", `${result.voltage} V`),
+      metric("Падение", `${result.dropVolts.toFixed(2)} V`),
+      metric("Участок", `${result.dropPercent.toFixed(2)}%`),
+      metric("Feeder + branch", `${result.totalDropPercent.toFixed(2)}%`)
+    );
+    container.append(grid);
+
+    const details = document.createElement("ul");
+    details.className = "result-list";
+    const formula = document.createElement("li");
+    formula.textContent = `Формула: ${result.multiplier === 2 ? "2" : "√3"} × L × K × I / CMA`;
+    details.append(formula);
+    if (result.recommendedSize) {
+      const recommendation = document.createElement("li");
+      recommendation.textContent = `Минимальный размер по ampacity и порогу 3%: ${result.recommendedSize}`;
+      details.append(recommendation);
+    }
+    result.references.forEach((reference) => {
+      const item = document.createElement("li");
+      item.textContent = `NEC 2023: ${reference}`;
+      details.append(item);
+    });
+    container.append(details);
+  } catch (error) {
+    showMessage(error.message, true);
+  }
+}
+
+function panelCell(slotNumber, entry) {
+  const fragment = document.createDocumentFragment();
+  const numberCell = document.createElement("td");
+  numberCell.className = "panel-slot";
+  numberCell.textContent = String(slotNumber);
+  const loadCell = document.createElement("td");
+  const phaseCell = document.createElement("td");
+  phaseCell.className = "panel-phase";
+
+  if (entry) {
+    loadCell.textContent = `${entry.name} · ${entry.amps} A${entry.poles > 1 ? ` · pole ${entry.poleIndex}/${entry.poles}` : ""}`;
+    phaseCell.textContent = entry.phase;
+  }
+  fragment.append(numberCell, loadCell, phaseCell);
+  return fragment;
+}
+
+function renderPanelFromForm() {
+  try {
+    const panelType = Number(document.querySelector('input[name="panel-type"]:checked').value);
+    if (panelType !== SUPPLY_SYSTEMS[project.supplySystem].phases) {
+      throw new RangeError(`Тип панели должен соответствовать системе ${SUPPLY_SYSTEMS[project.supplySystem].label}`);
+    }
+    const mismatchedCircuits = project.circuits.filter((circuit) => circuit.supplySystem !== project.supplySystem);
+    if (mismatchedCircuits.length) {
+      throw new RangeError(`Цепи другой системы не могут быть размещены вместе: ${mismatchedCircuits.map((circuit) => circuit.name).join(", ")}`);
+    }
+    const result = layoutPanel({
+      circuits: project.circuits,
+      panelType,
+      slotCount: Number(elements["panel-slots"].value)
+    });
+
+    const summary = elements["panel-result"];
+    resetResult(summary);
+    summary.classList.toggle("is-warning", result.unplaced.length > 0 || result.imbalancePercent > 20);
+    resultHeading(summary, result.unplaced.length ? "Панель построена не полностью" : "Панель построена");
+    const grid = document.createElement("div");
+    grid.className = "result-grid";
+    Object.entries(result.loads).forEach(([phase, amps]) => grid.append(metric(`Фаза ${phase}`, `${amps} A`)));
+    grid.append(metric("Перекос", `${result.imbalancePercent.toFixed(1)}%`));
+    summary.append(grid);
+
+    if (result.unplaced.length) {
+      const list = document.createElement("ul");
+      list.className = "result-list";
+      result.unplaced.forEach(({ circuit, reason }) => {
+        const item = document.createElement("li");
+        item.textContent = `${circuit.name}: ${reason}`;
+        list.append(item);
+      });
+      summary.append(list);
+    }
+
+    const table = document.createElement("table");
+    table.className = "panel-table";
+    const caption = document.createElement("caption");
+    caption.textContent = `${panelType === 3 ? "3-фазная" : "1-фазная"} панель`;
+    const head = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    ["#", "Нагрузка", "Фаза", "#", "Нагрузка", "Фаза"].forEach((label) => {
+      const th = document.createElement("th");
+      th.scope = "col";
+      th.textContent = label;
+      headRow.append(th);
+    });
+    head.append(headRow);
+
+    const body = document.createElement("tbody");
+    for (let row = 0; row < result.slots.length / 2; row += 1) {
+      const left = row * 2;
+      const right = left + 1;
+      const tr = document.createElement("tr");
+      tr.append(panelCell(left + 1, result.slots[left]), panelCell(right + 1, result.slots[right]));
+      body.append(tr);
+    }
+    table.append(caption, head, body);
+    elements["panel-visual"].replaceChildren(table);
+  } catch (error) {
+    showMessage(error.message, true);
+  }
+}
+
+function addCircuit(event) {
+  event.preventDefault();
+  try {
+    const amps = Number(elements["line-amps"].value);
+    const phase = Number(document.querySelector('input[name="phase"]:checked').value);
+    const neutral = phase === 1 ? true : elements["line-neutral"].checked;
+    if (SUPPLY_SYSTEMS[project.supplySystem].phases === 1 && phase === 3) {
+      throw new RangeError("3-pole цепь требует трёхфазную систему питания");
+    }
+    const sizingOptions = {
+      material: elements["line-material"].value,
+      insulationTemp: Number(elements["line-insulation-temp"].value),
+      terminalTemp: Number(elements["line-terminal-temp"].value),
+      ambientC: Number(elements["line-ambient"].value),
+      loadAmps: amps,
+      continuous: elements["line-continuous"].checked,
+      hundredPercentRated: false,
+      adjustmentFactor: 1
+    };
+    const selectedWire = selectWireSize(sizingOptions);
+    if (!selectedWire) throw new RangeError("Для заданных условий требуется проводник больше 1000 kcmil");
+    const lengthValue = elements["line-length"].value;
+    const circuit = {
+      id: createId(),
+      name: elements["line-name"].value.trim(),
+      amps,
+      phase,
+      neutral,
+      neutralCurrentCarrying: neutral && (phase === 1 || elements["line-neutral-ccc"].checked),
+      wireSize: selectedWire.wireSize,
+      material: sizingOptions.material,
+      insulationTemp: sizingOptions.insulationTemp,
+      terminalTemp: sizingOptions.terminalTemp,
+      ambientC: sizingOptions.ambientC,
+      continuous: sizingOptions.continuous,
+      hundredPercentRated: false,
+      circuitType: elements["line-circuit-type"].value,
+      length: lengthValue ? Number(lengthValue) : null,
+      lengthUnit: project.unitSystem,
+      supplySystem: project.supplySystem
+    };
+
+    project = validateProject({ ...project, circuits: [...project.circuits, circuit] });
+    persist();
+    elements["line-form"].reset();
+    updateNeutralControl();
+    renderAll();
+    showMessage(`Цепь «${circuit.name}» добавлена`);
+  } catch (error) {
+    showMessage(error.message, true);
+  }
+}
+
+function deleteCircuit(id) {
+  const circuit = project.circuits.find((candidate) => candidate.id === id);
+  if (!circuit || !confirm(`Удалить цепь «${circuit.name}»?`)) return;
+  project.circuits = project.circuits.filter((candidate) => candidate.id !== id);
+  persist();
+  renderAll();
+  elements["derating-result"].hidden = true;
+  elements["voltage-result"].hidden = true;
+  elements["panel-result"].hidden = true;
+  elements["panel-visual"].replaceChildren();
+}
+
+function exportProject() {
+  const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "nec_lines.json";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `calcuvolt-project-v${project.version}.json`;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
   URL.revokeObjectURL(url);
 }
 
-function importData() {
-  const input = document.getElementById("import-file");
-  const file = input.files[0];
+async function importProject(file) {
   if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const data = JSON.parse(reader.result);
-      if (!Array.isArray(data)) throw new Error("Неверный формат файла");
-
-      lines = data;
-      localStorage.setItem('lines', JSON.stringify(lines));
-      renderLines();
-      updateSelectors();
-      alert("Импорт завершён");
-    } catch (err) {
-      alert("Ошибка при импорте: " + err.message);
-    }
-  };
-  reader.readAsText(file);
+  if (file.size > 1_000_000) return showMessage("Файл импорта превышает лимит 1 MB", true);
+  try {
+    project = validateProject(JSON.parse(await file.text()));
+    persist();
+    renderAll();
+    elements["import-file"].value = "";
+    showMessage("Проект импортирован и проверен");
+  } catch (error) {
+    showMessage(`Импорт отклонён: ${error.message}`, true);
+  }
 }
 
-function renderVisualPanel() {
-  const slots = parseInt(document.getElementById("panel-slots").value);
-  const panelType = document.querySelector('input[name="panel-type"]:checked').value;
-  if (!slots || slots < 6 || slots % 2 !== 0) return alert("Слотов должно быть чётное число, минимум 6");
-
-  const container = document.getElementById("panel-visual");
-  container.innerHTML = "";
-
-  const table = document.createElement("table");
-  table.className = "panel-table";
-
-  table.innerHTML = `
-    <tr>
-      <th>#</th>
-      <th>Load Served</th>
-      <th>Phase</th>
-      <th>Phase</th>
-      <th>Load Served</th>
-      <th>#</th>
-    </tr>
-  `;
-
-  const slotMap = new Array(slots).fill(null);
-  let phaseLoad = { A: 0, B: 0, C: 0 };
-
-  const slotPhase = slot => ['A', 'B', 'C'][Math.floor(slot / 2) % 3];
-
-  const sorted = [...lines].sort((a, b) => b.amps - a.amps);
-  let pointer = 0;
-
-  for (const line of sorted) {
-    const label = `${line.name} (${line.amps}A)`;
-
-    if (line.phase === "3") {
-      if (panelType === "1") {
-        alert(`Линия "${line.name}" требует трёх фаз, переключаю на 3-фазную панель`);
-        document.querySelector('input[name="panel-type"][value="3"]').checked = true;
-        renderVisualPanel();
-        return;
-      }
-      for (let i = 0; i <= slots - 6; i += 2) {
-        if (!slotMap[i] && !slotMap[i + 2] && !slotMap[i + 4]) {
-          slotMap[i] = { label, type: "3ph", base: i };
-          slotMap[i + 2] = "_SKIP_";
-          slotMap[i + 4] = "_SKIP_";
-          phaseLoad.A += line.amps;
-          phaseLoad.B += line.amps;
-          phaseLoad.C += line.amps;
-          break;
-        }
-      }
-    } else if (line.phase === "2") {
-      while (pointer <= slots - 2 && (slotMap[pointer] || slotMap[pointer + 1])) pointer += 2;
-      if (pointer >= slots - 1) break;
-      const a = slotPhase(pointer), b = slotPhase(pointer + 1);
-      slotMap[pointer] = { label, type: "2ph", base: pointer, phases: `${a}+${b}` };
-      slotMap[pointer + 1] = "_SKIP_";
-      phaseLoad[a] += line.amps;
-      phaseLoad[b] += line.amps;
-      pointer += 2;
-    } else {
-      while (pointer < slots && slotMap[pointer]) pointer++;
-      if (pointer >= slots) break;
-      const phase = slotPhase(pointer);
-      slotMap[pointer] = { label, type: "1ph", phase };
-      phaseLoad[phase] += line.amps;
-    }
-  }
-
-  for (let i = 0; i < slots / 2; i++) {
-    const left = i * 2;
-    const right = i * 2 + 1;
-
-    const l = slotMap[left];
-    const r = slotMap[right];
-
-    const row = document.createElement("tr");
-
-    const buildCell = (slot, entry, isRight) => {
-      if (entry === "_SKIP_") return "";
-      if (!entry) return `<td></td><td></td>`;
-
-      if (entry.type === "3ph" && slot === entry.base) {
-        return isRight
-          ? `<td rowspan="3">A+B+C</td><td rowspan="3">${entry.label}</td>`
-          : `<td rowspan="3">${entry.label}</td><td rowspan="3">A+B+C</td>`;
-      }
-
-      if (entry.type === "2ph" && slot === entry.base) {
-        return isRight
-          ? `<td rowspan="2">${entry.phases}</td><td rowspan="2">${entry.label}</td>`
-          : `<td rowspan="2">${entry.label}</td><td rowspan="2">${entry.phases}</td>`;
-      }
-
-      if (entry.type === "1ph") {
-        return isRight
-          ? `<td>${entry.phase}</td><td>${entry.label}</td>`
-          : `<td>${entry.label}</td><td>${entry.phase}</td>`;
-      }
-
-      return `<td></td><td></td>`;
-    };
-
-    row.innerHTML = `
-      <td>${left + 1}</td>
-      ${buildCell(left, l, false)}
-      ${buildCell(right, r, true)}
-      <td>${right + 1}</td>
-    `;
-
-    table.appendChild(row);
-  }
-
-  const footer = document.createElement("tr");
-  footer.className = "footer-row";
-  const total = phaseLoad.A + phaseLoad.B + phaseLoad.C;
-  footer.innerHTML = `
-    <td colspan="6">Load per Phase: A = ${phaseLoad.A}A, B = ${phaseLoad.B}A, C = ${phaseLoad.C}A | Total = ${total}A</td>
-  `;
-  table.appendChild(footer);
-
-  container.appendChild(table);
+function resetProject() {
+  if (!confirm("Удалить все локальные цепи и начать новый расчёт?")) return;
+  clearProject();
+  project = emptyProject();
+  persist();
+  renderAll();
+  elements["derating-result"].hidden = true;
+  elements["voltage-result"].hidden = true;
+  elements["panel-result"].hidden = true;
+  elements["panel-visual"].replaceChildren();
+  showSection("lines");
+  showMessage("Создан новый расчёт");
 }
 
-
-
-
-function exportVisualPanel() {
-  const { jsPDF } = window.jspdf;
-  const visual = document.getElementById("panel-visual");
-  if (!visual) return alert("Нет данных для экспорта");
-
-  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  doc.setFont("helvetica", "");
-  doc.setFontSize(10);
-
-  const colWidths = [10, 70, 15, 15, 70, 10];
-  const startX = 10;
-  let startY = 20;
-  const rowHeight = 8;
-
-  const rows = Array.from(visual.querySelectorAll("tr"));
-  const cellMatrix = [];
-  const maxCols = colWidths.length;
-
-  // Заполняем матрицу ячеек с учётом rowspan и colspan
-  for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-    const row = rows[rowIndex];
-    const cells = Array.from(row.querySelectorAll("td, th"));
-    let colIndex = 0;
-
-    if (!cellMatrix[rowIndex]) cellMatrix[rowIndex] = [];
-
-    for (let cell of cells) {
-      while (cellMatrix[rowIndex][colIndex]) colIndex++;
-
-      const rowspan = parseInt(cell.getAttribute("rowspan") || 1);
-      const colspan = parseInt(cell.getAttribute("colspan") || 1);
-
-      for (let r = 0; r < rowspan; r++) {
-        for (let c = 0; c < colspan; c++) {
-          if (!cellMatrix[rowIndex + r]) cellMatrix[rowIndex + r] = [];
-          cellMatrix[rowIndex + r][colIndex + c] = {
-            text: (r === 0 && c === 0) ? cell.innerText.trim() : null,
-            rowspan,
-            colspan
-          };
-        }
-      }
-      colIndex += colspan;
-    }
-  }
-
-  // Рисуем
-  for (let row = 0; row < cellMatrix.length; row++) {
-    let x = startX;
-    for (let col = 0; col < maxCols; col++) {
-      const cell = cellMatrix[row][col];
-      if (!cell || cell.text === null) {
-        x += colWidths[col];
-        continue;
-      }
-      const width = colWidths.slice(col, col + cell.colspan).reduce((a, b) => a + b, 0);
-      const height = rowHeight * cell.rowspan;
-
-      doc.rect(x, startY, width, height);
-      if (cell.text) doc.text(cell.text, x + 1.5, startY + 5);
-
-      x += width;
-    }
-    startY += rowHeight;
-    if (startY > 280) {
-      doc.addPage();
-      startY = 20;
-    }
-  }
-
-  doc.save("panel_layout.pdf");
-}
-
-// Мобильная поддержка: scroll-x таблицы
-const style = document.createElement('style');
-style.innerHTML = `
-  @media (max-width: 768px) {
-    .panel-table {
-      display: block;
-      overflow-x: auto;
-      white-space: nowrap;
-    }
-    .panel-table td, .panel-table th {
-      white-space: nowrap;
-    }
-  }
-`;
-document.head.appendChild(style);
-
-
-
-
-
-window.onload = () => {
-  updateSystemOptions();
-  renderLines();
-  updateSelectors();
-  updateNeutral();
-  updateUnits();
-  updateVoltageDefaults();
-  showSection('lines');
-
-  document.getElementById("global-system").addEventListener("change", () => {
-    updateSystemOptions();
-    updateUnits();
-    renderLines();
+function registerEvents() {
+  document.querySelectorAll(".nav-button").forEach((button) => {
+    button.addEventListener("click", () => showSection(button.dataset.section));
   });
-};
+  document.querySelectorAll('input[name="phase"]').forEach((input) => {
+    input.addEventListener("change", updateNeutralControl);
+  });
+  elements["line-neutral"].addEventListener("change", updateNeutralControl);
+  elements["line-form"].addEventListener("submit", addCircuit);
+  elements["line-list"].addEventListener("click", (event) => {
+    const button = event.target.closest("[data-delete-circuit]");
+    if (button) deleteCircuit(button.dataset.deleteCircuit);
+  });
+  elements["global-system"].addEventListener("change", () => {
+    project.supplySystem = elements["global-system"].value;
+    persist();
+    renderAll();
+  });
+  elements["global-units"].addEventListener("change", () => {
+    project.unitSystem = elements["global-units"].value === "m" ? "m" : "ft";
+    persist();
+    setUnitLabels();
+  });
+  elements["conduit-type"].addEventListener("change", renderConduitSizes);
+  elements["calculate-derating"].addEventListener("click", calculateDeratingFromForm);
+  elements["voltage-line"].addEventListener("change", updateVoltageDefaults);
+  elements["calculate-voltage"].addEventListener("click", calculateVoltageFromForm);
+  elements["render-panel"].addEventListener("click", renderPanelFromForm);
+  elements["print-panel"].addEventListener("click", () => {
+    if (!elements["panel-visual"].querySelector("table")) return showMessage("Сначала постройте панель", true);
+    window.print();
+  });
+  elements["export-data"].addEventListener("click", exportProject);
+  elements["import-data"].addEventListener("click", () => elements["import-file"].click());
+  elements["import-file"].addEventListener("change", () => importProject(elements["import-file"].files[0]));
+  elements["reset-data"].addEventListener("click", resetProject);
+}
+
+function initialize() {
+  renderWireOptions();
+  renderConduitOptions();
+  renderAll();
+  updateNeutralControl();
+  registerEvents();
+  showSection("lines");
+  console.info(`CalcuVolt dataset: ${NEC_DATASET.id} (${NEC_DATASET.status})`);
+
+  if ("serviceWorker" in navigator && location.protocol !== "file:") {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./service-worker.js").catch((error) => {
+        console.warn("Service worker registration failed", error);
+      });
+    });
+  }
+}
+
+initialize();

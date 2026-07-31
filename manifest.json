@@ -1,9 +1,12 @@
 {
-  "name": "NEC Калькулятор",
-  "short_name": "NECCalc",
-  "start_url": "index.html",
+  "name": "CalcuVolt",
+  "short_name": "CalcuVolt",
+  "description": "Расчёты проводников, raceway и панелей в заявленной области NEC 2023.",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#1a1a1a",
-  "theme_color": "#1a1a1a",
+  "background_color": "#0b1019",
+  "theme_color": "#101827",
+  "lang": "ru",
   "icons": []
 }
