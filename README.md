@@ -35,6 +35,12 @@ npm test
 - `app.js` is the browser application layer.
 - `test/` contains calculation and persistence tests.
 
+Each project has one panel type: split-phase 120/240 V or three-phase Wye
+120/208 V. Circuits inherit that context at calculation time instead of storing
+their own supply-system setting. A three-pole circuit is rejected by split-phase
+panel layout. The circuit model records only a current-carrying neutral; a
+separate non-current-carrying neutral flag is intentionally not represented.
+
 ## NEC 2023 scope
 
 The application implements the portions of NFPA 70-2023 needed by its current

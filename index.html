@@ -22,14 +22,6 @@
         <p class="subtitle">Расчёты цепей и панелей с прозрачными допущениями.</p>
       </div>
       <div class="header-settings">
-        <label class="system-picker" for="global-system">
-          <span>Система питания NEC</span>
-          <select id="global-system">
-            <option value="single-120-240">1φ · 120/240 V</option>
-            <option value="three-120-208">3φ Wye · 120/208 V</option>
-            <option value="three-277-480">3φ Wye · 277/480 V</option>
-          </select>
-        </label>
         <label class="system-picker" for="global-units">
           <span>Единицы длины</span>
           <select id="global-units">
@@ -130,8 +122,7 @@
               <label><input type="radio" name="phase" value="1" checked> 1-pole</label>
               <label><input type="radio" name="phase" value="2"> 2-pole</label>
               <label><input type="radio" name="phase" value="3"> 3-pole</label>
-              <label><input type="checkbox" id="line-neutral"> Нейтраль</label>
-              <label><input type="checkbox" id="line-neutral-ccc"> Нейтраль токонесущая · 310.15(E)</label>
+              <label><input type="checkbox" id="line-neutral-ccc"> Токонесущая нейтраль · 310.15(E)</label>
             </fieldset>
             <div class="form-actions field-wide">
               <button class="primary-button" type="submit">Добавить цепь</button>
@@ -241,8 +232,8 @@
           <div class="card form-grid">
             <fieldset class="field choice-group">
               <legend>Тип панели</legend>
-              <label><input type="radio" name="panel-type" value="1" checked> 1-фазная</label>
-              <label><input type="radio" name="panel-type" value="3"> 3-фазная</label>
+              <label><input type="radio" name="panel-type" value="1" checked> Split-phase · 120/240 V</label>
+              <label><input type="radio" name="panel-type" value="3"> 3-phase Wye · 120/208 V</label>
             </fieldset>
             <label class="field">
               <span>Количество слотов</span>

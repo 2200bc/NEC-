@@ -1,9 +1,9 @@
 import { SUPPLY_SYSTEMS, WIRE_TABLE } from "../data/nec.js";
 
-const STORAGE_KEY = "calcuvolt-project-v3";
-const PREVIOUS_KEY = "calcuvolt-project-v2";
+const STORAGE_KEY = "calcuvolt-project-v4";
+const PREVIOUS_KEYS = ["calcuvolt-project-v3", "calcuvolt-project-v2"];
 const LEGACY_KEY = "lines";
-export const PROJECT_VERSION = 3;
+export const PROJECT_VERSION = 4;
 const WIRE_SIZES = new Set(WIRE_TABLE.map((wire) => wire.size));
 const WIRE_ALIASES = Object.freeze({
   "1/0": "1/0 AWG",
@@ -33,12 +33,6 @@ function normalizeWireSize(value) {
   return WIRE_ALIASES[raw] ?? raw;
 }
 
-function defaultSupply(raw, fallback) {
-  if (SUPPLY_SYSTEMS[raw.supplySystem]) return raw.supplySystem;
-  if (raw.system === "eu") return "single-120-240";
-  return fallback;
-}
-
 function normalizeCircuit(raw, index, defaults) {
   if (!raw || typeof raw !== "object") throw new TypeError(`Цепь ${index + 1} имеет неверный формат`);
   const name = String(raw.name ?? "").trim();
@@ -63,15 +57,16 @@ function normalizeCircuit(raw, index, defaults) {
     throw new RangeError(`Цепь ${index + 1}: длина должна быть положительным числом`);
   }
 
-  const supplySystem = defaultSupply(raw, defaults.supplySystem);
-  const neutral = phase === 1 ? true : Boolean(raw.neutral);
+  const neutralCurrentCarrying = phase === 1
+    ? true
+    : Boolean(raw.neutralCurrentCarrying);
   return {
     id: String(raw.id || globalThis.crypto?.randomUUID?.() || `circuit-${Date.now()}-${index}`),
     name,
     amps,
     phase,
-    neutral,
-    neutralCurrentCarrying: neutral && (raw.neutralCurrentCarrying ?? phase === 1),
+    neutral: neutralCurrentCarrying,
+    neutralCurrentCarrying,
     wireSize,
     material,
     insulationTemp,
@@ -81,15 +76,14 @@ function normalizeCircuit(raw, index, defaults) {
     hundredPercentRated: Boolean(raw.hundredPercentRated),
     circuitType: raw.circuitType === "feeder" ? "feeder" : "branch",
     length,
-    lengthUnit: raw.lengthUnit === "m" || raw.system === "eu" ? "m" : defaults.unitSystem,
-    supplySystem
+    lengthUnit: raw.lengthUnit === "m" || raw.system === "eu" ? "m" : defaults.unitSystem
   };
 }
 
 export function emptyProject() {
   return {
     version: PROJECT_VERSION,
-    supplySystem: "single-120-240",
+    panelType: 1,
     unitSystem: "ft",
     circuits: []
   };
@@ -97,27 +91,27 @@ export function emptyProject() {
 
 export function validateProject(raw) {
   if (Array.isArray(raw)) {
-    raw = { circuits: raw, supplySystem: "single-120-240", unitSystem: "ft" };
+    raw = { circuits: raw, panelType: 1, unitSystem: "ft" };
   }
   if (!raw || typeof raw !== "object") throw new TypeError("Проект должен быть объектом или legacy-массивом");
   if (!Array.isArray(raw.circuits)) throw new TypeError("Поле circuits должно быть массивом");
 
-  const supplySystem = SUPPLY_SYSTEMS[raw.supplySystem]
-    ? raw.supplySystem
-    : "single-120-240";
+  const panelType = [1, 3].includes(Number(raw.panelType))
+    ? Number(raw.panelType)
+    : (SUPPLY_SYSTEMS[raw.supplySystem]?.phases ?? 1);
   const unitSystem = raw.unitSystem === "m" || raw.system === "eu" ? "m" : "ft";
   const circuits = raw.circuits.map((circuit, index) =>
-    normalizeCircuit(circuit, index, { supplySystem, unitSystem })
+    normalizeCircuit(circuit, index, { unitSystem })
   );
   if (new Set(circuits.map((circuit) => circuit.id)).size !== circuits.length) {
     throw new RangeError("Идентификаторы цепей должны быть уникальными");
   }
-  return { version: PROJECT_VERSION, supplySystem, unitSystem, circuits };
+  return { version: PROJECT_VERSION, panelType, unitSystem, circuits };
 }
 
 export function loadProject(storage = globalThis.localStorage) {
   if (!storage) return emptyProject();
-  for (const key of [STORAGE_KEY, PREVIOUS_KEY, LEGACY_KEY]) {
+  for (const key of [STORAGE_KEY, ...PREVIOUS_KEYS, LEGACY_KEY]) {
     const serialized = storage.getItem(key);
     if (!serialized) continue;
     try {
@@ -137,6 +131,6 @@ export function saveProject(project, storage = globalThis.localStorage) {
 
 export function clearProject(storage = globalThis.localStorage) {
   storage?.removeItem(STORAGE_KEY);
-  storage?.removeItem(PREVIOUS_KEY);
+  PREVIOUS_KEYS.forEach((key) => storage?.removeItem(key));
   storage?.removeItem(LEGACY_KEY);
 }

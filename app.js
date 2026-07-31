@@ -1,4 +1,4 @@
-import { NEC_DATASET, RACEWAY_TOTAL_AREA, SUPPLY_SYSTEMS, WIRE_TABLE } from "./src/data/nec.js";
+import { NEC_DATASET, RACEWAY_TOTAL_AREA, WIRE_TABLE } from "./src/data/nec.js";
 import { selectWireSize } from "./src/domain/conductors.js";
 import { calculateDerating } from "./src/domain/derating.js";
 import { layoutPanel } from "./src/domain/panel.js";
@@ -13,8 +13,8 @@ import {
 
 const elements = Object.fromEntries(
   [
-    "app-message", "global-system", "global-units", "line-form", "line-name", "line-amps", "line-length",
-    "line-length-label", "line-neutral", "line-neutral-ccc", "line-material", "line-insulation-temp",
+    "app-message", "global-units", "line-form", "line-name", "line-amps", "line-length",
+    "line-length-label", "line-neutral-ccc", "line-material", "line-insulation-temp",
     "line-terminal-temp", "line-ambient", "line-continuous", "line-circuit-type",
     "line-count", "line-list", "conduit-type",
     "conduit-size", "derating-lines-list", "calculate-derating", "derating-result",
@@ -69,14 +69,19 @@ function setUnitLabels() {
 function updateNeutralControl() {
   const phase = Number(document.querySelector('input[name="phase"]:checked').value);
   if (phase === 1) {
-    elements["line-neutral"].checked = true;
-    elements["line-neutral"].disabled = true;
     elements["line-neutral-ccc"].checked = true;
     elements["line-neutral-ccc"].disabled = true;
   } else {
-    elements["line-neutral"].disabled = false;
-    elements["line-neutral-ccc"].disabled = !elements["line-neutral"].checked;
-    if (!elements["line-neutral"].checked) elements["line-neutral-ccc"].checked = false;
+    elements["line-neutral-ccc"].disabled = false;
+  }
+}
+
+function updateCircuitPhaseAvailability() {
+  const threePole = document.querySelector('input[name="phase"][value="3"]');
+  threePole.disabled = project.panelType === 1;
+  if (threePole.disabled && threePole.checked) {
+    document.querySelector('input[name="phase"][value="1"]').checked = true;
+    updateNeutralControl();
   }
 }
 
@@ -190,11 +195,10 @@ function renderWireOptions() {
 }
 
 function renderAll() {
-  elements["global-system"].value = project.supplySystem;
   elements["global-units"].value = project.unitSystem;
-  const panelPhases = SUPPLY_SYSTEMS[project.supplySystem].phases;
-  const panelRadio = document.querySelector(`input[name="panel-type"][value="${panelPhases}"]`);
+  const panelRadio = document.querySelector(`input[name="panel-type"][value="${project.panelType}"]`);
   if (panelRadio) panelRadio.checked = true;
+  updateCircuitPhaseAvailability();
   setUnitLabels();
   renderCircuitList();
   renderCircuitSelectors();
@@ -298,8 +302,11 @@ function calculateVoltageFromForm() {
   if (!circuit) return showMessage("Выберите цепь для расчёта", true);
 
   try {
+    if (project.panelType === 1 && circuit.phase === 3) {
+      throw new RangeError("Трёхполюсная цепь недопустима в split-phase панели");
+    }
     const result = calculateVoltageDrop({
-      supplySystem: circuit.supplySystem,
+      supplySystem: project.panelType === 3 ? "three-120-208" : "single-120-240",
       phase: circuit.phase,
       length: elements["voltage-length"].value,
       lengthUnit: circuit.lengthUnit,
@@ -368,13 +375,6 @@ function panelCell(slotNumber, entry) {
 function renderPanelFromForm() {
   try {
     const panelType = Number(document.querySelector('input[name="panel-type"]:checked').value);
-    if (panelType !== SUPPLY_SYSTEMS[project.supplySystem].phases) {
-      throw new RangeError(`Тип панели должен соответствовать системе ${SUPPLY_SYSTEMS[project.supplySystem].label}`);
-    }
-    const mismatchedCircuits = project.circuits.filter((circuit) => circuit.supplySystem !== project.supplySystem);
-    if (mismatchedCircuits.length) {
-      throw new RangeError(`Цепи другой системы не могут быть размещены вместе: ${mismatchedCircuits.map((circuit) => circuit.name).join(", ")}`);
-    }
     const result = layoutPanel({
       circuits: project.circuits,
       panelType,
@@ -405,7 +405,7 @@ function renderPanelFromForm() {
     const table = document.createElement("table");
     table.className = "panel-table";
     const caption = document.createElement("caption");
-    caption.textContent = `${panelType === 3 ? "3-фазная" : "1-фазная"} панель`;
+    caption.textContent = `${panelType === 3 ? "3-phase Wye" : "Split-phase"} panel`;
     const head = document.createElement("thead");
     const headRow = document.createElement("tr");
     ["#", "Нагрузка", "Фаза", "#", "Нагрузка", "Фаза"].forEach((label) => {
@@ -436,10 +436,10 @@ function addCircuit(event) {
   try {
     const amps = Number(elements["line-amps"].value);
     const phase = Number(document.querySelector('input[name="phase"]:checked').value);
-    const neutral = phase === 1 ? true : elements["line-neutral"].checked;
-    if (SUPPLY_SYSTEMS[project.supplySystem].phases === 1 && phase === 3) {
-      throw new RangeError("3-pole цепь требует трёхфазную систему питания");
+    if (project.panelType === 1 && phase === 3) {
+      throw new RangeError("Трёхполюсная цепь недопустима в split-phase панели");
     }
+    const neutral = phase === 1 || elements["line-neutral-ccc"].checked;
     const sizingOptions = {
       material: elements["line-material"].value,
       insulationTemp: Number(elements["line-insulation-temp"].value),
@@ -459,7 +459,7 @@ function addCircuit(event) {
       amps,
       phase,
       neutral,
-      neutralCurrentCarrying: neutral && (phase === 1 || elements["line-neutral-ccc"].checked),
+      neutralCurrentCarrying: neutral,
       wireSize: selectedWire.wireSize,
       material: sizingOptions.material,
       insulationTemp: sizingOptions.insulationTemp,
@@ -469,8 +469,7 @@ function addCircuit(event) {
       hundredPercentRated: false,
       circuitType: elements["line-circuit-type"].value,
       length: lengthValue ? Number(lengthValue) : null,
-      lengthUnit: project.unitSystem,
-      supplySystem: project.supplySystem
+      lengthUnit: project.unitSystem
     };
 
     project = validateProject({ ...project, circuits: [...project.circuits, circuit] });
@@ -543,16 +542,20 @@ function registerEvents() {
   document.querySelectorAll('input[name="phase"]').forEach((input) => {
     input.addEventListener("change", updateNeutralControl);
   });
-  elements["line-neutral"].addEventListener("change", updateNeutralControl);
   elements["line-form"].addEventListener("submit", addCircuit);
   elements["line-list"].addEventListener("click", (event) => {
     const button = event.target.closest("[data-delete-circuit]");
     if (button) deleteCircuit(button.dataset.deleteCircuit);
   });
-  elements["global-system"].addEventListener("change", () => {
-    project.supplySystem = elements["global-system"].value;
-    persist();
-    renderAll();
+  document.querySelectorAll('input[name="panel-type"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      project.panelType = Number(input.value);
+      persist();
+      updateCircuitPhaseAvailability();
+      elements["voltage-result"].hidden = true;
+      elements["panel-result"].hidden = true;
+      elements["panel-visual"].replaceChildren();
+    });
   });
   elements["global-units"].addEventListener("change", () => {
     project.unitSystem = elements["global-units"].value === "m" ? "m" : "ft";
