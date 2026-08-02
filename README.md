@@ -1,25 +1,24 @@
 # CalcuVolt
 
-CalcuVolt is a browser-based NEC 2023 workspace for independent conductor
-selection, raceway fill and ampacity adjustment, voltage-drop checks, saved
-project circuits, and panel layout.
+CalcuVolt — браузерный набор калькуляторов NEC 2023 для подбора проводника,
+Derating, заполнения труб, проверки падения напряжения, сохранения цепей проекта
+и раскладки панели.
 
-## Workflow
+## Порядок работы
 
-1. Run Conductor Sizing, Voltage Drop, or manual Raceway calculations directly;
-   an empty project is valid and no circuit must exist first.
-2. Use **Save as circuit** only when a calculation should become part of the
-   project.
-3. Use saved circuits for Panel Schedule and grouped Raceway calculations.
-4. Edit, duplicate, run Voltage Drop for, or delete a saved circuit from the
-   Saved Circuits section. Project changes are persisted locally and included
-   in JSON export.
+1. Выберите запланированный номинал брейкера и получите нужный проводник. Знать
+   фактическую нагрузку на этом этапе не требуется.
+2. Сохраните результат как цепь, если он должен войти в проект.
+3. Когда фактический ток станет известен, укажите его отдельно в расчёте
+   падения напряжения или Derating. Номинал брейкера вместо нагрузки не
+   подставляется.
+4. Используйте сохранённые цепи для раскладки панели и групповых расчётов.
+   Цепи можно редактировать, дублировать и удалять.
 
-## Run locally
+## Локальный запуск
 
-Serve the repository root with any static HTTP server. ES modules and the
-service worker do not run correctly when `index.html` is opened directly with a
-`file://` URL.
+Запускайте корень репозитория через любой статический HTTP-сервер. ES-модули и
+Service Worker не работают корректно при открытии `index.html` через `file://`.
 
 Example:
 
@@ -27,27 +26,27 @@ Example:
 python -m http.server 8000
 ```
 
-Then open `http://localhost:8000`.
+Затем откройте `http://localhost:8000`.
 
-## Tests
+## Тесты
 
-The test suite uses the test runner built into Node.js 20 or newer and has no
-third-party dependencies:
+Тесты используют встроенный test runner Node.js 20 или новее и не требуют
+сторонних зависимостей:
 
 ```sh
 npm test
 ```
 
-## Architecture
+## Архитектура
 
-- `src/data/nec.js` contains the scoped NFPA 70-2023 dataset and references.
-- `src/domain/` contains pure calculation functions with no DOM or storage
-  dependencies.
-- `src/domain/circuit-model.js` normalizes drafts and creates, updates, or
-  duplicates saved circuits while keeping conductor sizing in the domain layer.
-- `src/storage/project-store.js` validates, migrates, and persists projects.
-- `app.js` is the browser application layer.
-- `test/` contains calculation and persistence tests.
+- `src/data/nec.js` содержит используемые таблицы и ссылки NFPA 70-2023.
+- `src/domain/` содержит чистые расчётные функции без зависимости от DOM и
+  хранилища.
+- `src/domain/circuit-model.js` нормализует данные и создаёт, обновляет или
+  дублирует сохранённые цепи.
+- `src/storage/project-store.js` проверяет, мигрирует и сохраняет проекты.
+- `app.js` отвечает за интерфейс браузера.
+- `test/` содержит расчётные тесты и тесты хранения.
 
 Each project has one panel configuration: NYC single-phase network 120/208 V,
 split-phase 120/240 V, or three-phase Wye 120/208 V. Circuits inherit that

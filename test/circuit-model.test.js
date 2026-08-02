@@ -44,6 +44,6 @@ test("duplicate gets a new id and leaves original unchanged", () => {
   const original = draftToCircuit(draft(), { panelSystem: "single-120-208", idFactory: () => "old" });
   const copy = duplicateCircuit(original, { circuits: [original], idFactory: () => "copy" });
   assert.equal(copy.id, "copy");
-  assert.equal(copy.name, "Lighting Copy");
+  assert.equal(copy.name, "Lighting — копия");
   assert.equal(original.id, "old");
 });

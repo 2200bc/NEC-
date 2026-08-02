@@ -52,8 +52,8 @@ export function validateCircuitDraft(raw, panelSystem) {
 export function automaticCircuitName(circuits = []) {
   const names = new Set(circuits.map((circuit) => circuit.name));
   let index = 1;
-  while (names.has(`Circuit ${index}`)) index += 1;
-  return `Circuit ${index}`;
+  while (names.has(`Цепь ${index}`)) index += 1;
+  return `Цепь ${index}`;
 }
 
 export function sizeCircuitDraft(raw, panelSystem, adjustmentFactor = 1) {
@@ -84,7 +84,7 @@ export function updateCircuit(existing, raw, options = {}) {
 
 export function duplicateCircuit(existing, { circuits = [], idFactory = () => globalThis.crypto?.randomUUID?.() ?? `circuit-${Date.now()}` } = {}) {
   if (!existing?.id) throw new TypeError("Существующая цепь должна иметь id");
-  const base = `${existing.name} Copy`;
+  const base = `${existing.name} — копия`;
   const names = new Set(circuits.map((circuit) => circuit.name));
   let name = base;
   let index = 2;

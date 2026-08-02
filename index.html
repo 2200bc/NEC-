@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101827">
-  <meta name="description" content="CalcuVolt — независимые NEC 2023 расчёты проводников, падения напряжения, raceway fill и panel schedule.">
+  <meta name="description" content="CalcuVolt — расчёты проводников, падения напряжения, Derating, заполнения труб и раскладки панели по NEC 2023.">
   <title>CalcuVolt</title>
   <link rel="stylesheet" href="./style.css">
   <link rel="manifest" href="./manifest.json">
@@ -13,20 +13,20 @@
   <a class="skip-link" href="#workspace">Перейти к расчёту</a>
   <header class="app-header">
     <div>
-      <p class="eyebrow">Electrical planning workspace</p>
+      <p class="eyebrow">Расчёт электрических цепей</p>
       <h1>CalcuVolt</h1>
       <p class="subtitle">Сначала рассчитайте. Сохраняйте в проект только подтверждённые цепи.</p>
     </div>
     <div class="header-settings">
       <label class="system-picker" for="global-panel-type"><span>Конфигурация панели</span>
         <select id="global-panel-type">
-          <option value="single-120-208">1φ Network · 120/208 V · NYC</option>
-          <option value="single-120-240">Split-phase · 120/240 V</option>
-          <option value="three-120-208">3φ Wye · 120/208 V</option>
+          <option value="single-120-208">Сеть NYC · 1 фаза · 120/208 В</option>
+          <option value="single-120-240">Split-phase · 120/240 В</option>
+          <option value="three-120-208">3 фазы · Wye · 120/208 В</option>
         </select>
       </label>
       <label class="system-picker" for="global-units"><span>Единицы длины</span>
-        <select id="global-units"><option value="ft">feet</option><option value="m">meters</option></select>
+        <select id="global-units"><option value="ft">футы</option><option value="m">метры</option></select>
       </label>
     </div>
   </header>
@@ -34,8 +34,8 @@
   <div class="app-shell">
     <nav class="sidebar" aria-label="Разделы калькулятора">
       <button class="nav-button is-active" type="button" data-section="sizing"><span>01</span> Проводник</button>
-      <button class="nav-button" type="button" data-section="voltage"><span>02</span> Voltage Drop</button>
-      <button class="nav-button" type="button" data-section="raceway"><span>03</span> Raceway</button>
+      <button class="nav-button" type="button" data-section="voltage"><span>02</span> Падение напряжения</button>
+      <button class="nav-button" type="button" data-section="raceway"><span>03</span> Derating и трубы</button>
       <button class="nav-button" type="button" data-section="circuits"><span>04</span> Цепи <b id="line-count" class="badge">0</b></button>
       <button class="nav-button" type="button" data-section="panel"><span>05</span> Панель</button>
       <div class="project-actions">
@@ -51,106 +51,106 @@
       <div id="compatibility-warning" class="app-message is-error" role="alert" hidden></div>
 
       <section id="section-sizing" class="section" aria-labelledby="sizing-title">
-        <div class="section-heading"><div><p class="section-index">01 · Conductor</p><h2 id="sizing-title">Conductor Sizing</h2></div><p>Независимый расчёт NEC 2023. Проект изменится только после Save as circuit.</p></div>
+        <div class="section-heading"><div><p class="section-index">01 · ПРОВОДНИК</p><h2 id="sizing-title">Подбор проводника по брейкеру</h2></div><p>Выберите запланированный брейкер — фактическая нагрузка на этом этапе не требуется.</p></div>
         <form id="sizing-form" class="card form-grid">
           <label class="field field-wide"><span>Название (необязательно)</span><input id="sizing-name" maxlength="80" autocomplete="off" placeholder="Например, Kitchen receptacles"></label>
-          <label class="field"><span>Load current, A</span><input id="sizing-amps" type="number" min="0.1" step="0.1" inputmode="decimal" required></label>
+          <label class="field"><span>Запланированный брейкер</span><select id="sizing-amps" required></select></label>
           <label class="field"><span id="sizing-length-label">Длина, ft</span><input id="sizing-length" type="number" min="0" step="0.1" inputmode="decimal"></label>
-          <label class="field"><span>Материал</span><select id="sizing-material"><option value="copper">Copper</option><option value="aluminum">Aluminum / Cu-clad Al</option></select></label>
-          <label class="field"><span>Insulation</span><select id="sizing-insulation"><option value="90">90°C</option><option value="75">75°C</option><option value="60">60°C</option></select></label>
-          <label class="field"><span>Terminals · 110.14(C)</span><select id="sizing-terminal"><option value="60">60°C</option><option value="75">75°C</option></select></label>
-          <label class="field"><span>Ambient, °C</span><input id="sizing-ambient" type="number" min="-50" max="85" value="30"></label>
-          <label class="field"><span>Тип цепи</span><select id="sizing-circuit-type"><option value="branch">Branch circuit</option><option value="feeder">Feeder</option></select></label>
+          <label class="field"><span>Материал</span><select id="sizing-material"><option value="copper">Медь</option><option value="aluminum">Алюминий / омеднённый алюминий</option></select></label>
+          <label class="field"><span>Температура изоляции</span><select id="sizing-insulation"><option value="90">90°C</option><option value="75">75°C</option><option value="60">60°C</option></select></label>
+          <label class="field"><span>Температура клемм · 110.14(C)</span><select id="sizing-terminal"><option value="60">60°C</option><option value="75">75°C</option></select></label>
+          <label class="field"><span>Температура среды, °C</span><input id="sizing-ambient" type="number" min="-50" max="85" value="30"></label>
+          <label class="field"><span>Тип цепи</span><select id="sizing-circuit-type"><option value="branch">Ответвлённая цепь</option><option value="feeder">Фидер</option></select></label>
           <fieldset class="field field-wide choice-group"><legend>Полюса и условия</legend>
-            <label><input type="radio" name="sizing-phase" value="1" checked> 1-pole</label>
-            <label><input type="radio" name="sizing-phase" value="2"> 2-pole</label>
-            <label><input type="radio" name="sizing-phase" value="3"> 3-pole</label>
+            <label><input type="radio" name="sizing-phase" value="1" checked> 1 полюс</label>
+            <label><input type="radio" name="sizing-phase" value="2"> 2 полюса</label>
+            <label><input type="radio" name="sizing-phase" value="3"> 3 полюса</label>
             <label><input type="checkbox" id="sizing-neutral"> Токонесущая нейтраль · 310.15(E)</label>
-            <label><input type="checkbox" id="sizing-continuous"> Continuous load · 125%</label>
+            <input type="checkbox" id="sizing-continuous" hidden>
           </fieldset>
-          <div class="form-actions field-wide"><button class="primary-button" type="submit">Calculate conductor</button><button type="button" id="sizing-reset">Reset</button></div>
+          <div class="form-actions field-wide"><button class="primary-button" type="submit">Подобрать проводник</button><button type="button" id="sizing-reset">Сбросить</button></div>
         </form>
         <div id="sizing-result" class="result-card" aria-live="polite" hidden></div>
         <div id="sizing-result-actions" class="form-actions" hidden>
-          <button class="primary-button" type="button" id="sizing-save">Save as circuit</button>
-          <button type="button" id="sizing-another">Calculate another</button>
+          <button class="primary-button" type="button" id="sizing-save">Сохранить как цепь</button>
+          <button type="button" id="sizing-another">Подобрать ещё один</button>
         </div>
       </section>
 
       <section id="section-voltage" class="section" aria-labelledby="voltage-title" hidden>
-        <div class="section-heading"><div><p class="section-index">02 · Voltage</p><h2 id="voltage-title">Voltage Drop</h2></div><p>Рассчитайте новую цепь или загрузите сохранённую без автоматического изменения проекта.</p></div>
+        <div class="section-heading"><div><p class="section-index">02 · НАПРЯЖЕНИЕ</p><h2 id="voltage-title">Падение напряжения</h2></div><p>Введите фактический ток нагрузки, когда он станет известен. Номинал брейкера вместо него не подставляется.</p></div>
         <form id="voltage-form" class="card form-grid">
           <fieldset class="field field-wide choice-group"><legend>Источник данных</legend>
-            <label><input type="radio" name="voltage-mode" value="new" checked> New calculation</label>
-            <label><input type="radio" name="voltage-mode" value="saved"> Use saved circuit</label>
+            <label><input type="radio" name="voltage-mode" value="new" checked> Новый расчёт</label>
+            <label><input type="radio" name="voltage-mode" value="saved"> Сохранённая цепь</label>
           </fieldset>
           <label class="field field-wide" id="voltage-saved-field" hidden><span>Сохранённая цепь</span><select id="voltage-saved"><option value="">Выберите цепь</option></select></label>
           <label class="field field-wide"><span>Название (необязательно)</span><input id="voltage-name" maxlength="80"></label>
-          <label class="field"><span>Current, A</span><input id="voltage-amps" type="number" min="0.1" step="0.1" required></label>
+          <label class="field"><span>Фактический ток нагрузки, А</span><input id="voltage-amps" type="number" min="0.1" step="0.1" required></label>
           <label class="field"><span id="voltage-length-label">Длина, ft</span><input id="voltage-length" type="number" min="0.1" step="0.1" required></label>
-          <label class="field"><span>Material</span><select id="voltage-material"><option value="copper">Copper</option><option value="aluminum">Aluminum</option></select></label>
-          <label class="field"><span>Conductor size</span><select id="voltage-wire"></select></label>
-          <label class="field"><span>Upstream drop, %</span><input id="voltage-upstream" type="number" min="0" max="100" step="0.01" value="0"></label>
-          <label class="field"><span>Тип цепи</span><select id="voltage-circuit-type"><option value="branch">Branch circuit</option><option value="feeder">Feeder</option></select></label>
+          <label class="field"><span>Материал</span><select id="voltage-material"><option value="copper">Медь</option><option value="aluminum">Алюминий</option></select></label>
+          <label class="field"><span>Размер проводника</span><select id="voltage-wire"></select></label>
+          <label class="field"><span>Предшествующее падение, %</span><input id="voltage-upstream" type="number" min="0" max="100" step="0.01" value="0"></label>
+          <label class="field"><span>Тип цепи</span><select id="voltage-circuit-type"><option value="branch">Ответвлённая цепь</option><option value="feeder">Фидер</option></select></label>
           <fieldset class="field field-wide choice-group"><legend>Полюса</legend>
-            <label><input type="radio" name="voltage-phase" value="1" checked> 1-pole</label>
-            <label><input type="radio" name="voltage-phase" value="2"> 2-pole</label>
-            <label><input type="radio" name="voltage-phase" value="3"> 3-pole</label>
+            <label><input type="radio" name="voltage-phase" value="1" checked> 1 полюс</label>
+            <label><input type="radio" name="voltage-phase" value="2"> 2 полюса</label>
+            <label><input type="radio" name="voltage-phase" value="3"> 3 полюса</label>
           </fieldset>
-          <div class="form-actions field-wide"><button class="primary-button" type="submit">Calculate voltage drop</button></div>
+          <div class="form-actions field-wide"><button class="primary-button" type="submit">Рассчитать падение</button></div>
         </form>
         <div id="voltage-result" class="result-card" aria-live="polite" hidden></div>
-        <div id="voltage-actions" class="form-actions" hidden><button class="primary-button" type="button" id="voltage-save">Save as circuit</button><button type="button" id="voltage-update" hidden>Update circuit</button><button type="button" id="voltage-save-new" hidden>Save as new circuit</button></div>
+        <div id="voltage-actions" class="form-actions" hidden><button class="primary-button" type="button" id="voltage-save">Сохранить как цепь</button><button type="button" id="voltage-update" hidden>Обновить цепь</button><button type="button" id="voltage-save-new" hidden>Сохранить как новую цепь</button></div>
       </section>
 
       <section id="section-raceway" class="section" aria-labelledby="raceway-title" hidden>
-        <div class="section-heading"><div><p class="section-index">03 · Raceway</p><h2 id="raceway-title">Derating & Conduit Fill</h2></div><p>Сохранённые цепи и ручные проводники рассчитываются вместе, но physical и CCC quantities учитываются отдельно.</p></div>
+        <div class="section-heading"><div><p class="section-index">03 · ТРУБА</p><h2 id="raceway-title">Derating и заполнение трубы</h2></div><p>Фактическое количество проводников для заполнения и число токонесущих проводников для Derating учитываются отдельно.</p></div>
         <div class="card form-grid">
-          <div class="field field-wide"><span>Saved circuits</span><div id="raceway-saved-list" class="check-list"></div></div>
-          <fieldset class="field field-wide"><legend>Manual conductor row</legend><div class="form-grid compact-grid">
-            <label class="field"><span>Description</span><input id="manual-name" maxlength="80" placeholder="Manual group"></label>
-            <label class="field"><span>Wire size</span><select id="manual-wire"></select></label>
-            <label class="field"><span>Material</span><select id="manual-material"><option value="copper">Copper</option><option value="aluminum">Aluminum</option></select></label>
-            <label class="field"><span>Load current, A</span><input id="manual-amps" type="number" min="0.1" step="0.1"></label>
-            <label class="field"><span>Insulation</span><select id="manual-insulation"><option value="90">90°C</option><option value="75">75°C</option><option value="60">60°C</option></select></label>
-            <label class="field"><span>Terminals</span><select id="manual-terminal"><option value="60">60°C</option><option value="75">75°C</option></select></label>
-            <label class="field"><span>Ambient, °C</span><input id="manual-ambient" type="number" value="30" min="-50" max="85"></label>
-            <label class="field"><span>Physical conductors</span><input id="manual-physical" type="number" min="1" step="1" value="1"></label>
-            <label class="field"><span>CCC conductors</span><input id="manual-ccc" type="number" min="0" step="1" value="1"></label>
-            <label class="field"><span>Physical neutrals</span><input id="manual-neutrals" type="number" min="0" step="1" value="0"></label>
-            <label class="field"><span>CCC neutrals</span><input id="manual-neutral-ccc" type="number" min="0" step="1" value="0"></label>
-            <div class="field choice-group"><span>Load</span><label><input id="manual-continuous" type="checkbox"> Continuous · 125%</label></div>
-            <div class="form-actions field-wide"><button type="button" id="manual-add">Add manual row</button></div>
+          <div class="field field-wide"><span>Сохранённые цепи</span><div id="raceway-saved-list" class="check-list"></div></div>
+          <fieldset class="field field-wide"><legend>Добавить проводники вручную</legend><div class="form-grid compact-grid">
+            <label class="field"><span>Описание</span><input id="manual-name" maxlength="80" placeholder="Группа проводников"></label>
+            <label class="field"><span>Размер проводника</span><select id="manual-wire"></select></label>
+            <label class="field"><span>Материал</span><select id="manual-material"><option value="copper">Медь</option><option value="aluminum">Алюминий</option></select></label>
+            <label class="field"><span>Фактический ток нагрузки, А</span><input id="manual-amps" type="number" min="0.1" step="0.1"></label>
+            <label class="field"><span>Температура изоляции</span><select id="manual-insulation"><option value="90">90°C</option><option value="75">75°C</option><option value="60">60°C</option></select></label>
+            <label class="field"><span>Температура клемм</span><select id="manual-terminal"><option value="60">60°C</option><option value="75">75°C</option></select></label>
+            <label class="field"><span>Температура среды, °C</span><input id="manual-ambient" type="number" value="30" min="-50" max="85"></label>
+            <label class="field"><span>Физическое количество фазных проводников</span><input id="manual-physical" type="number" min="1" step="1" value="1"></label>
+            <label class="field"><span>Из них токонесущих (CCC)</span><input id="manual-ccc" type="number" min="0" step="1" value="1"></label>
+            <label class="field"><span>Физическое количество нейтралей</span><input id="manual-neutrals" type="number" min="0" step="1" value="0"></label>
+            <label class="field"><span>Из них токонесущих нейтралей</span><input id="manual-neutral-ccc" type="number" min="0" step="1" value="0"></label>
+            <div class="field choice-group"><span>Нагрузка</span><label><input id="manual-continuous" type="checkbox"> Продолжительная · 125%</label></div>
+            <div class="form-actions field-wide"><button type="button" id="manual-add">Добавить строку</button></div>
           </div></fieldset>
-          <div class="field field-wide"><span>Manual conductors</span><div id="manual-list" class="circuit-list"></div></div>
-          <label class="field"><span>Raceway type</span><select id="conduit-type"></select></label>
-          <label class="field"><span>Raceway size</span><select id="conduit-size"></select></label>
-          <label class="field"><span>EGC size</span><select id="ground-wire"></select></label>
-          <label class="field"><span>EGC quantity</span><input id="ground-count" type="number" min="0" step="1" value="1"></label>
-          <div class="field choice-group"><span>Raceway</span><label><input id="conduit-nipple" type="checkbox"> Nipple ≤24″ · 60% fill</label></div>
-          <div class="form-actions field-wide"><button class="primary-button" type="button" id="calculate-derating">Calculate raceway</button></div>
+          <div class="field field-wide"><span>Проводники, добавленные вручную</span><div id="manual-list" class="circuit-list"></div></div>
+          <label class="field"><span>Тип трубы</span><select id="conduit-type"></select></label>
+          <label class="field"><span>Размер трубы</span><select id="conduit-size"></select></label>
+          <label class="field"><span>Размер EGC</span><select id="ground-wire"></select></label>
+          <label class="field"><span>Количество EGC</span><input id="ground-count" type="number" min="0" step="1" value="1"></label>
+          <div class="field choice-group"><span>Участок трубы</span><label><input id="conduit-nipple" type="checkbox"> Ниппель ≤24″ · заполнение 60%</label></div>
+          <div class="form-actions field-wide"><button class="primary-button" type="button" id="calculate-derating">Рассчитать</button></div>
         </div>
         <div id="derating-result" class="result-card" aria-live="polite" hidden></div>
       </section>
 
       <section id="section-circuits" class="section" aria-labelledby="circuits-title" hidden>
-        <div class="section-heading"><div><p class="section-index">04 · Project</p><h2 id="circuits-title">Saved Circuits</h2></div><p>Только эти цепи участвуют в Panel Schedule, групповом Derating и экспорте.</p></div>
+        <div class="section-heading"><div><p class="section-index">04 · ПРОЕКТ</p><h2 id="circuits-title">Сохранённые цепи</h2></div><p>Эти цепи используются для раскладки панели, группового Derating и экспорта.</p></div>
         <div id="line-list" class="circuit-list"></div>
       </section>
 
       <section id="section-panel" class="section" aria-labelledby="panel-title" hidden>
-        <div class="section-heading"><div><p class="section-index">05 · Panel</p><h2 id="panel-title">Panel Schedule</h2></div><p>Раскладка использует только сохранённые цепи. После изменения проекта её нужно построить заново.</p></div>
+        <div class="section-heading"><div><p class="section-index">05 · ПАНЕЛЬ</p><h2 id="panel-title">Раскладка панели</h2></div><p>После изменения сохранённых цепей раскладку нужно построить заново.</p></div>
         <div class="card form-grid">
           <label class="field"><span>Количество слотов</span><input id="panel-slots" type="number" min="6" max="168" step="2" value="24"></label>
-          <div class="form-actions field-wide"><button class="primary-button" type="button" id="render-panel">Render panel</button><button type="button" id="print-panel">Печать / PDF</button></div>
+          <div class="form-actions field-wide"><button class="primary-button" type="button" id="render-panel">Построить панель</button><button type="button" id="print-panel">Печать / PDF</button></div>
         </div>
-        <div id="panel-stale" class="app-message" role="status" hidden>Panel Schedule устарел. Нажмите Render panel.</div>
+        <div id="panel-stale" class="app-message" role="status" hidden>Раскладка устарела. Нажмите «Построить панель».</div>
         <div id="panel-result" class="result-card" aria-live="polite" hidden></div>
         <div id="panel-visual" class="panel-scroll"></div>
       </section>
     </main>
   </div>
-  <footer class="app-footer"><p>Scoped NEC 2023 calculation support. Проверяйте специальные статьи оборудования и требования AHJ.</p></footer>
-  <script type="module" src="./app.js?v=20260802-1"></script>
+  <footer class="app-footer"><p>Расчёты выполнены по поддерживаемой части NEC 2023. Проверяйте специальные статьи оборудования и требования AHJ.</p></footer>
+  <script type="module" src="./app.js?v=20260802-2"></script>
 </body>
 </html>

@@ -1,6 +1,7 @@
-import { NEC_DATASET, RACEWAY_TOTAL_AREA, SUPPLY_SYSTEMS, WIRE_TABLE } from "./src/data/nec.js";
+import { NEC_DATASET, RACEWAY_TOTAL_AREA, STANDARD_OCPD_RATINGS, SUPPLY_SYSTEMS, WIRE_TABLE } from "./src/data/nec.js";
 import { draftToCircuit, duplicateCircuit, sizeCircuitDraft, updateCircuit } from "./src/domain/circuit-model.js";
 import { calculateDerating } from "./src/domain/derating.js";
+import { nextStandardOcpd } from "./src/domain/conductors.js";
 import { layoutPanel } from "./src/domain/panel.js";
 import { calculateVoltageDrop } from "./src/domain/voltage-drop.js";
 import { clearProject, emptyProject, loadProject, saveProject, validateProject } from "./src/storage/project-store.js";
@@ -58,6 +59,15 @@ function appendOption(select, value, label, selected = false) {
   select.append(option);
 }
 
+const CONDUIT_FRACTIONS = Object.freeze({
+  "0.5": "½″", "0.75": "¾″", "1": "1″", "1.25": "1¼″", "1.5": "1½″",
+  "2": "2″", "2.5": "2½″", "3": "3″", "3.5": "3½″", "4": "4″"
+});
+
+function conduitSizeLabel(size) {
+  return CONDUIT_FRACTIONS[size] ?? `${size}″`;
+}
+
 function metric(label, value) {
   const item = document.createElement("div");
   item.className = "metric";
@@ -106,7 +116,7 @@ function updateCompatibility() {
   const incompatible = panelPhases() === 1 ? project.circuits.filter((circuit) => circuit.phase === 3) : [];
   el["compatibility-warning"].hidden = incompatible.length === 0;
   el["compatibility-warning"].textContent = incompatible.length
-    ? `В проекте есть 3-pole цепи, несовместимые с однофазной панелью: ${incompatible.map((c) => c.name).join(", ")}`
+    ? `В проекте есть трёхполюсные цепи, несовместимые с однофазной панелью: ${incompatible.map((c) => c.name).join(", ")}`
     : "";
 }
 
@@ -141,7 +151,7 @@ function circuitDraftFromSizingForm() {
     insulationTemp: el["sizing-insulation"].value,
     terminalTemp: el["sizing-terminal"].value,
     ambientC: el["sizing-ambient"].value,
-    continuous: el["sizing-continuous"].checked,
+    continuous: false,
     circuitType: el["sizing-circuit-type"].value,
     length: el["sizing-length"].value,
     lengthUnit: project.unitSystem
@@ -168,32 +178,31 @@ function renderSizingResult(result) {
   const { sizing } = result;
   const container = el["sizing-result"];
   resetResult(container);
-  resultTitle(container, `Selected conductor: ${sizing.wireSize}`);
+  resultTitle(container, `Нужный проводник: ${sizing.wireSize}`);
   const grid = document.createElement("div");
   grid.className = "result-grid";
   grid.append(
-    metric("Load current", `${result.rawDraft.amps} A`),
-    metric("Required ampacity", `${sizing.requiredAmpacity.toFixed(1)} A`),
-    metric("Continuous adjustment", result.rawDraft.continuous ? "125%" : "100%"),
-    metric("Base ampacity", `${sizing.tableAmpacity} A`),
-    metric("Ambient factor", sizing.temperatureFactor.toFixed(2)),
-    metric("CCC factor", sizing.adjustmentFactor.toFixed(2)),
-    metric("Corrected ampacity", `${sizing.correctedAmpacity.toFixed(1)} A`),
-    metric("Terminal limit", `${sizing.terminalAmpacity} A`),
-    metric("Allowable ampacity", `${sizing.allowableAmpacity.toFixed(1)} A`),
-    metric("Maximum permitted OCPD", `${sizing.maximumOcpd} A`)
+    metric("Нужный проводник", `${sizing.wireSize} · ${result.rawDraft.material === "aluminum" ? "Al" : "Cu"}`),
+    metric("Запланированный брейкер", `${result.rawDraft.amps} A`),
+    metric("Допустимый ток проводника", `${sizing.allowableAmpacity.toFixed(1)} A`),
+    metric("Максимальный допустимый брейкер", `${sizing.maximumOcpd} A`),
+    metric("Ток по таблице 310.16", `${sizing.tableAmpacity} A`),
+    metric("Поправка по температуре", sizing.temperatureFactor.toFixed(2)),
+    metric("Поправка Derating", sizing.adjustmentFactor.toFixed(2)),
+    metric("После поправок", `${sizing.correctedAmpacity.toFixed(1)} A`),
+    metric("Ограничение клемм", `${sizing.terminalAmpacity} A`)
   );
   container.append(grid);
   addReferences(container, ["Table 310.16", "310.15(B)(1)(1)", "110.14(C)", "240.4(D)"]);
   el["sizing-result-actions"].hidden = false;
-  el["sizing-save"].textContent = editingCircuitId ? "Update circuit" : "Save as circuit";
+  el["sizing-save"].textContent = editingCircuitId ? "Обновить цепь" : "Сохранить как цепь";
 }
 
 function calculateSizing(event) {
   event.preventDefault();
   try {
     const rawDraft = circuitDraftFromSizingForm();
-    const calculationDraft = { ...rawDraft, name: rawDraft.name.trim() || "Unsaved calculation" };
+    const calculationDraft = { ...rawDraft, continuous: false, name: rawDraft.name.trim() || "Несохранённый расчёт" };
     const result = sizeCircuitDraft(calculationDraft, project.panelSystem);
     sizingCalculation = { ...result, rawDraft };
     renderSizingResult(sizingCalculation);
@@ -234,6 +243,7 @@ function resetSizing(preservePreferences = false) {
     phase: selectedRadio("sizing-phase")
   } : null;
   el["sizing-form"].reset();
+  el["sizing-amps"].value = "20";
   el["sizing-ambient"].value = preferences?.ambient ?? 30;
   if (preferences) {
     el["sizing-material"].value = preferences.material;
@@ -264,7 +274,7 @@ function voltageDraftFromForm() {
     insulationTemp: saved?.insulationTemp ?? 90,
     terminalTemp: saved?.terminalTemp ?? 60,
     ambientC: saved?.ambientC ?? 30,
-    continuous: Boolean(saved?.continuous),
+    continuous: false,
     circuitType: el["voltage-circuit-type"].value,
     length: el["voltage-length"].value,
     lengthUnit: project.unitSystem
@@ -273,7 +283,7 @@ function voltageDraftFromForm() {
 
 function fillVoltageForm(circuit) {
   el["voltage-name"].value = circuit.name ?? "";
-  el["voltage-amps"].value = circuit.amps ?? "";
+  el["voltage-amps"].value = "";
   el["voltage-length"].value = circuit.length ?? "";
   el["voltage-material"].value = circuit.material ?? "copper";
   el["voltage-wire"].value = circuit.wireSize ?? "12 AWG";
@@ -325,18 +335,18 @@ function calculateVoltage(event) {
     resetResult(container);
     const warning = result.exceedsBranchRecommendation || result.exceedsCombinedRecommendation;
     container.classList.toggle("is-warning", warning);
-    resultTitle(container, warning ? "Рекомендуемый предел превышен" : "Voltage drop в рекомендуемых пределах");
+    resultTitle(container, warning ? "Рекомендуемый предел превышен" : "Падение напряжения в рекомендуемых пределах");
     const grid = document.createElement("div");
     grid.className = "result-grid";
     grid.append(
-      metric("System voltage", `${result.voltage} V`),
-      metric("Formula mode", result.multiplier === 2 ? "Single-phase · 2 × L" : "Three-phase · √3 × L"),
-      metric("Conductor", `${voltageCalculation.wireSize} · ${draft.material === "aluminum" ? "Al" : "Cu"}`),
-      metric("Local drop", `${result.dropVolts.toFixed(2)} V`),
-      metric("Local drop", `${result.dropPercent.toFixed(2)}% · ${result.exceedsBranchRecommendation ? "FAIL 3%" : "PASS 3%"}`),
-      metric("Upstream", `${result.upstreamDropPercent.toFixed(2)}%`),
-      metric("Total drop", `${result.totalDropPercent.toFixed(2)}% · ${result.exceedsCombinedRecommendation ? "FAIL 5%" : "PASS 5%"}`),
-      metric("Recommended size", result.recommendedSize ?? "Over 1000 kcmil")
+      metric("Рабочее напряжение", `${result.voltage} V`),
+      metric("Режим формулы", result.multiplier === 2 ? "Однофазная · 2 × L" : "Трёхфазная · √3 × L"),
+      metric("Проводник", `${voltageCalculation.wireSize} · ${draft.material === "aluminum" ? "Al" : "Cu"}`),
+      metric("Падение на участке", `${result.dropVolts.toFixed(2)} V`),
+      metric("Падение на участке", `${result.dropPercent.toFixed(2)}% · ${result.exceedsBranchRecommendation ? "НЕ ПРОХОДИТ 3%" : "ПРОХОДИТ 3%"}`),
+      metric("Предшествующее падение", `${result.upstreamDropPercent.toFixed(2)}%`),
+      metric("Суммарное падение", `${result.totalDropPercent.toFixed(2)}% · ${result.exceedsCombinedRecommendation ? "НЕ ПРОХОДИТ 5%" : "ПРОХОДИТ 5%"}`),
+      metric("Рекомендуемый размер", result.recommendedSize ?? "Больше 1000 kcmil")
     );
     container.append(grid);
     addReferences(container, result.references);
@@ -355,11 +365,11 @@ function saveVoltage(asUpdate = false) {
     if (asUpdate) {
       const existing = project.circuits.find((circuit) => circuit.id === voltageCircuitId);
       if (!existing) throw new RangeError("Сохранённая цепь не найдена");
-      const updated = updateCircuit(existing, voltageCalculation.draft, options);
+      const updated = updateCircuit(existing, { ...voltageCalculation.draft, amps: existing.amps }, options);
       project.circuits = project.circuits.map((circuit) => circuit.id === existing.id ? updated : circuit);
       showMessage(`Цепь «${updated.name}» обновлена`);
     } else {
-      const circuit = draftToCircuit(voltageCalculation.draft, options);
+      const circuit = draftToCircuit({ ...voltageCalculation.draft, amps: nextStandardOcpd(voltageCalculation.draft.amps) }, options);
       project.circuits = [...project.circuits, circuit];
       showMessage(`Цепь «${circuit.name}» сохранена`);
     }
@@ -374,14 +384,14 @@ function manualRowFromForm() {
   const cccQuantity = Number(el["manual-ccc"].value);
   const neutralQuantity = Number(el["manual-neutrals"].value);
   const currentCarryingNeutralQuantity = Number(el["manual-neutral-ccc"].value);
-  if (!Number.isInteger(conductorQuantity) || conductorQuantity <= 0) throw new RangeError("Physical conductor quantity должен быть больше 0");
+  if (!Number.isInteger(conductorQuantity) || conductorQuantity <= 0) throw new RangeError("Физическое количество фазных проводников должно быть больше 0");
   if (![cccQuantity, neutralQuantity, currentCarryingNeutralQuantity].every(Number.isInteger) || Math.min(cccQuantity, neutralQuantity, currentCarryingNeutralQuantity) < 0) throw new RangeError("Количество проводников должно быть целым неотрицательным");
-  if (cccQuantity > conductorQuantity) throw new RangeError("CCC quantity превышает physical conductor quantity");
-  if (currentCarryingNeutralQuantity > neutralQuantity) throw new RangeError("CCC neutral quantity превышает physical neutral quantity");
+  if (cccQuantity > conductorQuantity) throw new RangeError("Количество CCC больше физического количества фазных проводников");
+  if (currentCarryingNeutralQuantity > neutralQuantity) throw new RangeError("Токонесущих нейтралей больше физического количества нейтралей");
   const amps = Number(el["manual-amps"].value);
-  if (!Number.isFinite(amps) || amps <= 0) throw new RangeError("Load current должен быть положительным");
+  if (!Number.isFinite(amps) || amps <= 0) throw new RangeError("Фактический ток должен быть положительным");
   return {
-    id: createId(), name: el["manual-name"].value.trim() || `Manual ${manualRows.length + 1}`,
+    id: createId(), name: el["manual-name"].value.trim() || `Группа ${manualRows.length + 1}`,
     wireSize: el["manual-wire"].value, material: el["manual-material"].value,
     insulationTemp: Number(el["manual-insulation"].value), terminalTemp: Number(el["manual-terminal"].value),
     ambientC: Number(el["manual-ambient"].value), amps, continuous: el["manual-continuous"].checked,
@@ -408,10 +418,10 @@ function renderManualRows() {
     const text = document.createElement("div");
     const title = document.createElement("h4"); title.textContent = row.name;
     const meta = document.createElement("div"); meta.className = "circuit-meta";
-    meta.textContent = `${row.wireSize} · ${row.amps} A · physical ${row.conductorQuantity + row.neutralQuantity} · CCC ${row.cccQuantity + row.currentCarryingNeutralQuantity}`;
+    meta.textContent = `${row.wireSize} · ${row.amps} A · физических ${row.conductorQuantity + row.neutralQuantity} · CCC ${row.cccQuantity + row.currentCarryingNeutralQuantity}`;
     text.append(title, meta);
     const actions = document.createElement("div"); actions.className = "item-actions";
-    [["Save as circuit", "save-manual"], ["Delete", "delete-manual"]].forEach(([label, action]) => {
+    [["Сохранить как цепь", "save-manual"], ["Удалить", "delete-manual"]].forEach(([label, action]) => {
       const button = document.createElement("button"); button.type = "button"; button.textContent = label; button.setAttribute(`data-${action}`, row.id); actions.append(button);
     });
     item.append(text, actions); el["manual-list"].append(item);
@@ -438,29 +448,35 @@ function saveManualRow(id) {
 function calculateRaceway() {
   try {
     const selectedIds = new Set([...el["raceway-saved-list"].querySelectorAll('input[type="checkbox"]:checked')].map((box) => box.value));
-    const circuits = [...project.circuits.filter((circuit) => selectedIds.has(circuit.id)), ...manualRows];
+    const savedCircuits = project.circuits.filter((circuit) => selectedIds.has(circuit.id)).map((circuit) => {
+      const input = el["raceway-saved-list"].querySelector(`[data-load-for="${CSS.escape(circuit.id)}"]`);
+      const actualAmps = Number(input?.value);
+      if (!Number.isFinite(actualAmps) || actualAmps <= 0) throw new RangeError(`Укажите фактический ток для цепи «${circuit.name}»`);
+      return { ...circuit, amps: actualAmps };
+    });
+    const circuits = [...savedCircuits, ...manualRows];
     const result = calculateDerating({
       circuits, conduitType: el["conduit-type"].value, conduitSize: el["conduit-size"].value,
       groundWireSize: el["ground-wire"].value, groundCount: Number(el["ground-count"].value), nipple: el["conduit-nipple"].checked
     });
     const container = el["derating-result"]; resetResult(container); container.classList.toggle("is-danger", result.overfilled);
-    resultTitle(container, result.overfilled ? "Raceway fill: FAIL" : "Raceway fill: PASS");
+    resultTitle(container, result.overfilled ? "Заполнение трубы: НЕ ПРОХОДИТ" : "Заполнение трубы: ПРОХОДИТ");
     const grid = document.createElement("div"); grid.className = "result-grid";
     grid.append(
-      metric("Physical conductor area", `${result.occupiedArea.toFixed(4)} in²`),
-      metric("Allowable raceway area", `${result.maximumFillArea.toFixed(4)} in²`),
-      metric("Actual fill", `${result.actualFillPercent.toFixed(1)}%`),
-      metric("Permitted limit", `${(result.fillLimit * 100).toFixed(0)}%`),
-      metric("Total physical", String(result.installedConductorCount)),
-      metric("Total CCC", String(result.currentCarryingCount)),
-      metric("Adjustment factor", result.adjustmentFactor.toFixed(2)),
-      metric("EGC contribution", `${el["ground-count"].value} × ${el["ground-wire"].value}`)
+      metric("Площадь проводников", `${result.occupiedArea.toFixed(4)} in²`),
+      metric("Допустимая площадь", `${result.maximumFillArea.toFixed(4)} in²`),
+      metric("Фактическое заполнение", `${result.actualFillPercent.toFixed(1)}%`),
+      metric("Допустимый предел", `${(result.fillLimit * 100).toFixed(0)}%`),
+      metric("Всего физических проводников", String(result.installedConductorCount)),
+      metric("Всего токонесущих (CCC)", String(result.currentCarryingCount)),
+      metric("Коэффициент Derating", result.adjustmentFactor.toFixed(2)),
+      metric("Вклад EGC", `${el["ground-count"].value} × ${el["ground-wire"].value}`)
     );
     container.append(grid);
     const list = document.createElement("ul"); list.className = "result-list";
     result.circuits.forEach((circuit) => {
       const li = document.createElement("li");
-      li.textContent = `${circuit.name}: base ${circuit.tableAmpacity} A · ambient ${circuit.temperatureFactor.toFixed(2)} · corrected ${circuit.allowableAmpacity.toFixed(1)} A · required ${circuit.requiredAmpacity.toFixed(1)} A · terminal ${circuit.terminalAmpacity} A · ${circuit.originalPasses ? "PASS" : "FAIL"}`;
+      li.textContent = `${circuit.name}: по таблице ${circuit.tableAmpacity} A · температура ${circuit.temperatureFactor.toFixed(2)} · допустимо ${circuit.allowableAmpacity.toFixed(1)} A · требуется ${circuit.requiredAmpacity.toFixed(1)} A · клеммы ${circuit.terminalAmpacity} A · ${circuit.originalPasses ? "ПРОХОДИТ" : "НЕ ПРОХОДИТ"}`;
       list.append(li);
     });
     container.append(list); addReferences(container, result.references);
@@ -471,16 +487,16 @@ function renderCircuitList() {
   el["line-count"].textContent = String(project.circuits.length);
   el["line-list"].replaceChildren();
   if (!project.circuits.length) {
-    const empty = document.createElement("div"); empty.className = "empty-state"; empty.textContent = "Сохранённых цепей пока нет. Выполните независимый расчёт и нажмите Save as circuit."; el["line-list"].append(empty); return;
+    const empty = document.createElement("div"); empty.className = "empty-state"; empty.textContent = "Сохранённых цепей пока нет. Подберите проводник и нажмите «Сохранить как цепь»."; el["line-list"].append(empty); return;
   }
   project.circuits.forEach((circuit) => {
     const item = document.createElement("article"); item.className = "circuit-item";
     const details = document.createElement("div"); const title = document.createElement("h4"); title.textContent = circuit.name;
     const meta = document.createElement("div"); meta.className = "circuit-meta";
-    meta.textContent = `${circuit.amps} A · ${circuit.phase}-pole${circuit.neutralCurrentCarrying ? " + CCC neutral" : ""} · ${circuit.wireSize} · ${circuit.material === "aluminum" ? "Al" : "Cu"}${circuit.length !== null ? ` · ${circuit.length} ${circuit.lengthUnit}` : ""}`;
+    meta.textContent = `брейкер ${circuit.amps} A · ${circuit.phase} пол.${circuit.neutralCurrentCarrying ? " + токонесущая нейтраль" : ""} · ${circuit.wireSize} · ${circuit.material === "aluminum" ? "Al" : "Cu"}${circuit.length !== null ? ` · ${circuit.length} ${circuit.lengthUnit}` : ""}`;
     details.append(title, meta);
     const actions = document.createElement("div"); actions.className = "item-actions";
-    [["Edit", "edit-circuit"], ["Duplicate", "duplicate-circuit"], ["Voltage drop", "voltage-circuit"], ["Delete", "delete-circuit"]].forEach(([label, action]) => {
+    [["Редактировать", "edit-circuit"], ["Дублировать", "duplicate-circuit"], ["Падение напряжения", "voltage-circuit"], ["Удалить", "delete-circuit"]].forEach(([label, action]) => {
       const button = document.createElement("button"); button.type = "button"; button.textContent = label; button.setAttribute(`data-${action}`, circuit.id); actions.append(button);
     });
     item.append(details, actions); el["line-list"].append(item);
@@ -492,10 +508,12 @@ function renderCircuitSelectors() {
   el["voltage-saved"].replaceChildren(); appendOption(el["voltage-saved"], "", "Выберите цепь");
   project.circuits.forEach((circuit) => appendOption(el["voltage-saved"], circuit.id, `${circuit.name} · ${circuit.amps} A`, circuit.id === oldVoltage));
   el["raceway-saved-list"].replaceChildren();
-  if (!project.circuits.length) { const p = document.createElement("p"); p.className = "circuit-meta"; p.textContent = "Нет сохранённых цепей — используйте manual conductors."; el["raceway-saved-list"].append(p); }
+  if (!project.circuits.length) { const p = document.createElement("p"); p.className = "circuit-meta"; p.textContent = "Нет сохранённых цепей — добавьте проводники вручную."; el["raceway-saved-list"].append(p); }
   project.circuits.forEach((circuit) => {
     const label = document.createElement("label"); const box = document.createElement("input"); box.type = "checkbox"; box.value = circuit.id;
-    const text = document.createElement("span"); text.textContent = `${circuit.name} · ${circuit.wireSize} · ${circuit.phase}-pole`; label.append(box, text); el["raceway-saved-list"].append(label);
+    const text = document.createElement("span"); text.textContent = `${circuit.name} · брейкер ${circuit.amps} A · ${circuit.wireSize} · ${circuit.phase} пол.`;
+    const load = document.createElement("input"); load.type = "number"; load.min = "0.1"; load.step = "0.1"; load.inputMode = "decimal"; load.placeholder = "Фактический ток, А"; load.setAttribute("aria-label", `Фактический ток цепи ${circuit.name}`); load.setAttribute("data-load-for", circuit.id);
+    label.append(box, text, load); el["raceway-saved-list"].append(label);
   });
 }
 
@@ -531,13 +549,13 @@ function panelCell(slot, entry) {
 function renderPanel() {
   try {
     const incompatible = panelPhases() === 1 ? project.circuits.filter((circuit) => circuit.phase === 3) : [];
-    if (incompatible.length) throw new RangeError(`Сначала исправьте несовместимые 3-pole цепи: ${incompatible.map((c) => c.name).join(", ")}`);
+    if (incompatible.length) throw new RangeError(`Сначала исправьте несовместимые трёхполюсные цепи: ${incompatible.map((c) => c.name).join(", ")}`);
     const result = layoutPanel({ circuits: project.circuits, panelType: panelPhases(), slotCount: Number(el["panel-slots"].value) });
     const summary = el["panel-result"]; resetResult(summary); summary.classList.toggle("is-warning", result.unplaced.length > 0 || result.imbalancePercent > 20);
     resultTitle(summary, result.unplaced.length ? "Панель построена не полностью" : "Панель построена");
     const grid = document.createElement("div"); grid.className = "result-grid"; Object.entries(result.loads).forEach(([phase, amps]) => grid.append(metric(`Фаза ${phase}`, `${amps} A`))); grid.append(metric("Перекос", `${result.imbalancePercent.toFixed(1)}%`)); summary.append(grid);
     if (result.unplaced.length) { const list = document.createElement("ul"); list.className = "result-list"; result.unplaced.forEach(({ circuit, reason }) => { const li = document.createElement("li"); li.textContent = `${circuit.name}: ${reason}`; list.append(li); }); summary.append(list); }
-    const table = document.createElement("table"); table.className = "panel-table"; const caption = document.createElement("caption"); caption.textContent = `${SUPPLY_SYSTEMS[project.panelSystem].label} panel`;
+    const table = document.createElement("table"); table.className = "panel-table"; const caption = document.createElement("caption"); caption.textContent = `${SUPPLY_SYSTEMS[project.panelSystem].label} · панель`;
     const head = document.createElement("thead"); const row = document.createElement("tr"); ["#", "Нагрузка", "Фаза", "#", "Нагрузка", "Фаза"].forEach((text) => { const th = document.createElement("th"); th.textContent = text; th.scope = "col"; row.append(th); }); head.append(row);
     const body = document.createElement("tbody"); for (let index = 0; index < result.slots.length; index += 2) { const tr = document.createElement("tr"); tr.append(panelCell(index + 1, result.slots[index]), panelCell(index + 2, result.slots[index + 1])); body.append(tr); }
     table.append(caption, head, body); el["panel-visual"].replaceChildren(table); el["panel-stale"].hidden = true;
@@ -568,9 +586,11 @@ function renderConduitOptions() {
   el["conduit-type"].replaceChildren(); Object.keys(RACEWAY_TOTAL_AREA).forEach((type) => appendOption(el["conduit-type"], type, type)); renderConduitSizes();
 }
 function renderConduitSizes() {
-  const type = el["conduit-type"].value; el["conduit-size"].replaceChildren(); Object.keys(RACEWAY_TOTAL_AREA[type] ?? {}).sort((a, b) => Number(a) - Number(b)).forEach((size) => appendOption(el["conduit-size"], size, `${size}″`));
+  const type = el["conduit-type"].value; el["conduit-size"].replaceChildren(); Object.keys(RACEWAY_TOTAL_AREA[type] ?? {}).sort((a, b) => Number(a) - Number(b)).forEach((size) => appendOption(el["conduit-size"], size, conduitSizeLabel(size)));
 }
 function renderWireOptions() {
+  el["sizing-amps"].replaceChildren();
+  STANDARD_OCPD_RATINGS.forEach((rating) => appendOption(el["sizing-amps"], String(rating), `${rating} A`, rating === 20));
   for (const select of [el["voltage-wire"], el["manual-wire"], el["ground-wire"]]) { select.replaceChildren(); WIRE_TABLE.forEach((wire) => appendOption(select, wire.size, wire.size, wire.size === "12 AWG")); }
 }
 

@@ -419,11 +419,17 @@ input[type="checkbox"] {
 }
 
 .check-list label {
+  display: grid;
+  grid-template-columns: auto minmax(8rem, 1fr) minmax(8rem, 11rem);
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.7rem;
   overflow-wrap: anywhere;
+}
+
+.check-list label > input[type="number"] {
+  width: 100%;
 }
 
 .result-card {
@@ -447,6 +453,11 @@ input[type="checkbox"] {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.7rem;
+}
+
+.result-grid .metric:first-child {
+  border: 1px solid rgb(98 223 180 / 48%);
+  background: rgb(98 223 180 / 10%);
 }
 
 .metric {
@@ -618,6 +629,14 @@ footer a {
   .check-list,
   .result-grid {
     grid-template-columns: 1fr;
+  }
+
+  .check-list label {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .check-list label > input[type="number"] {
+    grid-column: 1 / -1;
   }
 
   .form-actions > button {
