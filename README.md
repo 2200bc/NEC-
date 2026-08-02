@@ -1,7 +1,19 @@
 # CalcuVolt
 
-CalcuVolt is a browser-based NEC 2023 workspace for circuit conductor selection,
-raceway fill and ampacity adjustment, voltage-drop checks, and panel layout.
+CalcuVolt is a browser-based NEC 2023 workspace for independent conductor
+selection, raceway fill and ampacity adjustment, voltage-drop checks, saved
+project circuits, and panel layout.
+
+## Workflow
+
+1. Run Conductor Sizing, Voltage Drop, or manual Raceway calculations directly;
+   an empty project is valid and no circuit must exist first.
+2. Use **Save as circuit** only when a calculation should become part of the
+   project.
+3. Use saved circuits for Panel Schedule and grouped Raceway calculations.
+4. Edit, duplicate, run Voltage Drop for, or delete a saved circuit from the
+   Saved Circuits section. Project changes are persisted locally and included
+   in JSON export.
 
 ## Run locally
 
@@ -31,6 +43,8 @@ npm test
 - `src/data/nec.js` contains the scoped NFPA 70-2023 dataset and references.
 - `src/domain/` contains pure calculation functions with no DOM or storage
   dependencies.
+- `src/domain/circuit-model.js` normalizes drafts and creates, updates, or
+  duplicates saved circuits while keeping conductor sizing in the domain layer.
 - `src/storage/project-store.js` validates, migrates, and persists projects.
 - `app.js` is the browser application layer.
 - `test/` contains calculation and persistence tests.

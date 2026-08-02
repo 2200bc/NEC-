@@ -69,8 +69,8 @@ export function layoutPanel({ circuits, panelType, slotCount }) {
   }
 
   const loadValues = Object.values(loads);
-  const maximumLoad = Math.max(...loadValues, 0);
-  const minimumLoad = Math.min(...loadValues, 0);
+  const maximumLoad = Math.max(...loadValues);
+  const minimumLoad = Math.min(...loadValues);
   const imbalancePercent = maximumLoad === 0 ? 0 : (maximumLoad - minimumLoad) / maximumLoad * 100;
 
   return { slots: slotMap, loads, unplaced, imbalancePercent };

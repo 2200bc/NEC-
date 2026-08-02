@@ -20,12 +20,16 @@
 
 html {
   min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   background: var(--bg);
 }
 
 body {
   margin: 0;
   min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background:
     radial-gradient(circle at 80% -10%, rgb(67 119 157 / 22%), transparent 35rem),
@@ -335,6 +339,21 @@ input[type="checkbox"] {
   gap: 0.7rem;
 }
 
+.item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.item-actions button {
+  min-height: 2.75rem;
+}
+
+.compact-grid {
+  margin-top: 0.75rem;
+}
+
 .primary-button {
   border-color: transparent;
   background: var(--accent);
@@ -531,7 +550,7 @@ footer a {
 
   .sidebar {
     position: static;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .nav-button {
@@ -611,6 +630,18 @@ footer a {
 
   .circuit-item button {
     width: 100%;
+  }
+
+  .item-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  input,
+  select,
+  button {
+    min-height: 44px;
   }
 }
 

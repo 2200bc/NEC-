@@ -1,12 +1,13 @@
-const CACHE_NAME = "calcuvolt-nec-2023-v3";
+const CACHE_NAME = "calcuvolt-nec-2023-v4";
 const APP_FILES = [
   "./",
   "./index.html",
   "./style.css",
-  "./app.js",
+  "./app.js?v=20260802-1",
   "./manifest.json",
   "./src/data/nec.js",
   "./src/domain/conductors.js",
+  "./src/domain/circuit-model.js",
   "./src/domain/derating.js",
   "./src/domain/panel.js",
   "./src/domain/voltage-drop.js",

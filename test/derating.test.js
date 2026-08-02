@@ -75,3 +75,23 @@ test("unsupported raceway combination fails closed", () => {
     /нет данных/
   );
 });
+
+test("manual conductors keep physical fill and CCC counts separate", () => {
+  const result = calculateDerating({
+    circuits: [circuit({
+      id: "manual-1",
+      phase: undefined,
+      conductorQuantity: 3,
+      cccQuantity: 2,
+      neutralQuantity: 1,
+      currentCarryingNeutralQuantity: 0
+    })],
+    conduitType: "EMT",
+    conduitSize: "0.5",
+    groundWireSize: "12 AWG",
+    groundCount: 1
+  });
+  assert.equal(result.currentCarryingCount, 2);
+  assert.equal(result.installedConductorCount, 5);
+  assert.equal(result.occupiedArea, 5 * 0.0133);
+});

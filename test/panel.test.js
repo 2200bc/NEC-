@@ -60,3 +60,23 @@ test("insufficient space never drops a circuit silently", () => {
   });
   assert.ok(result.unplaced.length > 0);
 });
+
+test("three-pole circuit is placed in a three-phase panel", () => {
+  const result = layoutPanel({
+    circuits: [circuit({ id: "three", name: "Three phase", phase: 3 })],
+    panelType: 3,
+    slotCount: 12
+  });
+  assert.equal(result.unplaced.length, 0);
+  assert.equal(result.slots.filter((slot) => slot?.circuitId === "three").length, 3);
+});
+
+test("panel imbalance compares actual phase loads without a synthetic zero phase", () => {
+  const result = layoutPanel({
+    circuits: [circuit({ id: "a", amps: 25, phase: 1 }), circuit({ id: "b", amps: 20, phase: 1 })],
+    panelType: 1,
+    slotCount: 12
+  });
+  assert.deepEqual(result.loads, { A: 25, B: 20 });
+  assert.equal(result.imbalancePercent, 20);
+});

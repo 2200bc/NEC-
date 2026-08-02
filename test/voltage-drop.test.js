@@ -52,3 +52,21 @@ test("metric length is converted to feet", () => {
   });
   assert.ok(Math.abs(result.lengthFeet - 32.8084) < 0.0001);
 });
+
+test("independent NYC two-pole calculation uses 208 V", () => {
+  const result = calculateVoltageDrop({
+    supplySystem: "single-120-208", phase: 2, length: 100, lengthUnit: "ft",
+    material: "copper", wireSize: "10 AWG", amps: 30
+  });
+  assert.equal(result.voltage, 208);
+  assert.equal(result.multiplier, 2);
+});
+
+test("independent three-phase calculation uses square-root-of-three mode", () => {
+  const result = calculateVoltageDrop({
+    supplySystem: "three-120-208", phase: 3, length: 100, lengthUnit: "ft",
+    material: "copper", wireSize: "10 AWG", amps: 30
+  });
+  assert.equal(result.voltage, 208);
+  assert.equal(result.multiplier, Math.sqrt(3));
+});

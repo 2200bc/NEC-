@@ -15,12 +15,30 @@ export function adjustmentFactor(conductorCount) {
 }
 
 export function currentCarryingCountForCircuit(circuit) {
+  if (circuit.cccQuantity !== undefined || circuit.currentCarryingNeutralQuantity !== undefined) {
+    const phaseConductors = Number(circuit.cccQuantity ?? 0);
+    const neutralConductors = Number(circuit.currentCarryingNeutralQuantity ?? 0);
+    if (![phaseConductors, neutralConductors].every(Number.isInteger) || phaseConductors < 0 || neutralConductors < 0) {
+      throw new RangeError("Количество токонесущих проводников должно быть целым неотрицательным числом");
+    }
+    return phaseConductors + neutralConductors;
+  }
   const poles = Number(circuit.phase);
   if (![1, 2, 3].includes(poles)) throw new RangeError("Цепь должна иметь 1, 2 или 3 полюса");
   return poles + (circuit.neutral && circuit.neutralCurrentCarrying ? 1 : 0);
 }
 
 export function installedConductorCountForCircuit(circuit) {
+  if (circuit.conductorQuantity !== undefined || circuit.neutralQuantity !== undefined) {
+    const phaseConductors = Number(circuit.conductorQuantity ?? 0);
+    const neutralConductors = Number(circuit.neutralQuantity ?? 0);
+    if (![phaseConductors, neutralConductors].every(Number.isInteger) || phaseConductors < 0 || neutralConductors < 0) {
+      throw new RangeError("Физическое количество проводников должно быть целым неотрицательным числом");
+    }
+    if (Number(circuit.cccQuantity ?? 0) > phaseConductors) throw new RangeError("CCC quantity превышает physical conductor quantity");
+    if (Number(circuit.currentCarryingNeutralQuantity ?? 0) > neutralConductors) throw new RangeError("Токонесущих нейтралей больше физического количества нейтралей");
+    return phaseConductors + neutralConductors;
+  }
   return Number(circuit.phase) + (circuit.neutral ? 1 : 0);
 }
 
@@ -83,7 +101,11 @@ export function calculateDerating({
       originalSize: circuit.wireSize,
       requiredSize: selected?.wireSize ?? null,
       originalPasses: original.passes,
-      allowableAmpacity: original.allowableAmpacity
+      allowableAmpacity: original.allowableAmpacity,
+      tableAmpacity: original.tableAmpacity,
+      terminalAmpacity: original.terminalAmpacity,
+      temperatureFactor: original.temperatureFactor,
+      requiredAmpacity: original.requiredAmpacity
     };
   });
 
@@ -93,7 +115,9 @@ export function calculateDerating({
     adjustmentFactor: factor,
     fillLimit,
     occupiedArea,
+    totalRacewayArea,
     maximumFillArea,
+    actualFillPercent: occupiedArea / totalRacewayArea * 100,
     fillPercentOfAllowed: occupiedArea / maximumFillArea * 100,
     overfilled: occupiedArea > maximumFillArea,
     circuits: circuitResults,
