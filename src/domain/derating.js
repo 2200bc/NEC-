@@ -1,5 +1,15 @@
 import { RACEWAY_TOTAL_AREA } from "../data/nec.js";
-import { evaluateWire, findWire, selectWireSize } from "./conductors.js";
+import { evaluateWire, findWire, recommendNextWireSize } from "./conductors.js";
+
+export function addUniqueSavedCircuits(items, savedCircuits) {
+  const existing = new Set(items.filter((item) => item.source === "saved").map((item) => item.sourceId));
+  return [...items, ...savedCircuits.filter((circuit) => !existing.has(circuit.id)).map((circuit) => ({
+    ...circuit,
+    id: `raceway-${circuit.id}`,
+    source: "saved",
+    sourceId: circuit.id
+  }))];
+}
 
 export function adjustmentFactor(conductorCount) {
   if (!Number.isInteger(conductorCount) || conductorCount < 0) {
@@ -88,20 +98,27 @@ export function calculateDerating({
     const original = evaluateWire({
       ...circuit,
       loadAmps: circuit.amps,
+      plannedOcpd: circuit.plannedOcpd ?? circuit.breakerAmps ?? circuit.amps,
       adjustmentFactor: factor
     });
-    const selected = selectWireSize({
+    const selected = original.passes ? null : recommendNextWireSize({
       ...circuit,
+      wireSize: circuit.wireSize,
       loadAmps: circuit.amps,
+      plannedOcpd: circuit.plannedOcpd ?? circuit.breakerAmps ?? circuit.amps,
       adjustmentFactor: factor
     });
     return {
       id: circuit.id,
       name: circuit.name,
       originalSize: circuit.wireSize,
-      requiredSize: selected?.wireSize ?? null,
+      requiredSize: original.passes ? circuit.wireSize : selected?.wireSize ?? null,
       originalPasses: original.passes,
+      status: original.passes ? "pass" : "fail",
+      reason: original.reason,
+      plannedOcpd: original.plannedOcpd,
       allowableAmpacity: original.allowableAmpacity,
+      correctedAmpacity: original.correctedAmpacity,
       tableAmpacity: original.tableAmpacity,
       terminalAmpacity: original.terminalAmpacity,
       temperatureFactor: original.temperatureFactor,

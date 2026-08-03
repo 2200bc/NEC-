@@ -1,11 +1,35 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  ambientTemperatureForMode,
   ambientCorrectionFactor,
   evaluateWire,
   findWire,
-  selectWireSize
+  selectWireSize,
+  recommendNextWireSize
 } from "../src/domain/conductors.js";
+
+test("planned automatic breaker participates in pass/fail and yields structured reason", () => {
+  const pass = evaluateWire({ wireSize: "6 AWG", material: "copper", insulationTemp: 90, terminalTemp: 75, loadAmps: 50, plannedOcpd: 50, adjustmentFactor: 0.8 });
+  assert.equal(pass.passes, true);
+  const fail = evaluateWire({ wireSize: "6 AWG", material: "copper", insulationTemp: 90, terminalTemp: 75, loadAmps: 52, plannedOcpd: 60, adjustmentFactor: 0.7 });
+  assert.equal(fail.passes, false);
+  assert.equal(fail.reason.code, "planned_ocpd");
+  assert.equal(recommendNextWireSize({ wireSize: "6 AWG", material: "copper", insulationTemp: 90, terminalTemp: 75, loadAmps: 52, plannedOcpd: 60, adjustmentFactor: 0.7 }).wireSize, "4 AWG");
+});
+
+test("terminal limitation can be a structured failure reason", () => {
+  const result = evaluateWire({ wireSize: "6 AWG", material: "copper", insulationTemp: 90, terminalTemp: 60, loadAmps: 50, plannedOcpd: 60 });
+  assert.equal(result.passes, false);
+  assert.equal(result.reason.code, "terminal_limit");
+});
+
+test("ambient installation presets resolve to numeric temperatures", () => {
+  assert.equal(ambientTemperatureForMode("indoor"), 30);
+  assert.equal(ambientTemperatureForMode("rooftop"), 55);
+  assert.equal(ambientTemperatureForMode("rooftop", 45), 45);
+  assert.equal(ambientTemperatureForMode("custom", 37), 37);
+});
 
 test("NEC 2023 Table 310.16 corrected copper values are loaded", () => {
   assert.deepEqual(findWire("3 AWG").ampacity.copper, { 60: 85, 75: 100, 90: 115 });

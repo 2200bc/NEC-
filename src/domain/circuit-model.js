@@ -61,6 +61,7 @@ export function sizeCircuitDraft(raw, panelSystem, adjustmentFactor = 1) {
   const sizing = selectWireSize({
     ...draft,
     loadAmps: draft.amps,
+    plannedOcpd: draft.amps,
     adjustmentFactor
   });
   if (!sizing) throw new RangeError("Для заданных условий требуется проводник больше 1000 kcmil");
@@ -71,7 +72,7 @@ export function draftToCircuit(raw, { panelSystem, circuits = [], idFactory = ()
   const withName = { ...raw, name: String(raw?.name ?? "").trim() || automaticCircuitName(circuits) };
   const { draft, sizing } = sizeCircuitDraft(withName, panelSystem);
   const chosen = wireSize
-    ? evaluateWire({ ...draft, wireSize, loadAmps: draft.amps, adjustmentFactor: 1 })
+    ? evaluateWire({ ...draft, wireSize, loadAmps: draft.amps, plannedOcpd: draft.amps, adjustmentFactor: 1 })
     : sizing;
   if (!chosen.passes) throw new RangeError(`${wireSize} не проходит расчётную ampacity`);
   return { id: String(idFactory()), ...draft, wireSize: chosen.wireSize };

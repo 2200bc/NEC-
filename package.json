@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "check": "node --check app.js && node --check src/domain/circuit-model.js && node --check src/domain/derating.js && node --check src/domain/voltage-drop.js && node --check src/domain/panel.js && node --check src/storage/project-store.js"
+    "check": "node --check app.js && node --check src/domain/conductors.js && node --check src/domain/circuit-model.js && node --check src/domain/derating.js && node --check src/domain/voltage-drop.js && node --check src/domain/panel.js && node --check src/storage/project-store.js"
   }
 }

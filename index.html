@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#101827">
   <meta name="description" content="CalcuVolt — расчёты проводников, падения напряжения, Derating, заполнения труб и раскладки панели по NEC 2023.">
   <title>CalcuVolt</title>
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style.css?v=20260802-3">
   <link rel="manifest" href="./manifest.json">
 </head>
 <body>
@@ -51,15 +51,17 @@
       <div id="compatibility-warning" class="app-message is-error" role="alert" hidden></div>
 
       <section id="section-sizing" class="section" aria-labelledby="sizing-title">
-        <div class="section-heading"><div><p class="section-index">01 · ПРОВОДНИК</p><h2 id="sizing-title">Подбор проводника по брейкеру</h2></div><p>Выберите запланированный брейкер — фактическая нагрузка на этом этапе не требуется.</p></div>
+        <div class="section-heading"><div><p class="section-index">01 · ПРОВОДНИК</p><h2 id="sizing-title">Подбор проводника по автомату</h2></div><p>Выберите запланированный автомат — фактическая нагрузка на этом этапе не требуется.</p></div>
         <form id="sizing-form" class="card form-grid">
           <label class="field field-wide"><span>Название (необязательно)</span><input id="sizing-name" maxlength="80" autocomplete="off" placeholder="Например, Kitchen receptacles"></label>
-          <label class="field"><span>Запланированный брейкер</span><select id="sizing-amps" required></select></label>
+          <label class="field"><span>Запланированный автомат</span><select id="sizing-amps" required></select></label>
           <label class="field"><span id="sizing-length-label">Длина, ft</span><input id="sizing-length" type="number" min="0" step="0.1" inputmode="decimal"></label>
           <label class="field"><span>Материал</span><select id="sizing-material"><option value="copper">Медь</option><option value="aluminum">Алюминий / омеднённый алюминий</option></select></label>
           <label class="field"><span>Температура изоляции</span><select id="sizing-insulation"><option value="90">90°C</option><option value="75">75°C</option><option value="60">60°C</option></select></label>
           <label class="field"><span>Температура клемм · 110.14(C)</span><select id="sizing-terminal"><option value="60">60°C</option><option value="75">75°C</option></select></label>
-          <label class="field"><span>Температура среды, °C</span><input id="sizing-ambient" type="number" min="-50" max="85" value="30"></label>
+          <label class="field"><span>Условия прокладки</span><select id="sizing-ambient-mode"><option value="indoor">В помещении / обычные условия</option><option value="rooftop">На крыше / жаркая зона</option><option value="custom">Другая температура</option></select></label>
+          <label class="field" id="sizing-rooftop-field" hidden><span>Расчётная температура (ambient preset)</span><select id="sizing-rooftop-temp"><option>40</option><option>45</option><option>50</option><option selected>55</option><option>60</option></select></label>
+          <label class="field" id="sizing-custom-field" hidden><span>Температура среды, °C</span><input id="sizing-ambient" type="number" min="-50" max="85" value="30"></label>
           <label class="field"><span>Тип цепи</span><select id="sizing-circuit-type"><option value="branch">Ответвлённая цепь</option><option value="feeder">Фидер</option></select></label>
           <fieldset class="field field-wide choice-group"><legend>Полюса и условия</legend>
             <label><input type="radio" name="sizing-phase" value="1" checked> 1 полюс</label>
@@ -78,7 +80,7 @@
       </section>
 
       <section id="section-voltage" class="section" aria-labelledby="voltage-title" hidden>
-        <div class="section-heading"><div><p class="section-index">02 · НАПРЯЖЕНИЕ</p><h2 id="voltage-title">Падение напряжения</h2></div><p>Введите фактический ток нагрузки, когда он станет известен. Номинал брейкера вместо него не подставляется.</p></div>
+        <div class="section-heading"><div><p class="section-index">02 · НАПРЯЖЕНИЕ</p><h2 id="voltage-title">Падение напряжения</h2></div><p>Введите фактический ток нагрузки, когда он станет известен. Номинал автомата вместо него не подставляется.</p></div>
         <form id="voltage-form" class="card form-grid">
           <fieldset class="field field-wide choice-group"><legend>Источник данных</legend>
             <label><input type="radio" name="voltage-mode" value="new" checked> Новый расчёт</label>
@@ -105,29 +107,41 @@
 
       <section id="section-raceway" class="section" aria-labelledby="raceway-title" hidden>
         <div class="section-heading"><div><p class="section-index">03 · ТРУБА</p><h2 id="raceway-title">Derating и заполнение трубы</h2></div><p>Фактическое количество проводников для заполнения и число токонесущих проводников для Derating учитываются отдельно.</p></div>
-        <div class="card form-grid">
-          <div class="field field-wide"><span>Сохранённые цепи</span><div id="raceway-saved-list" class="check-list"></div></div>
-          <fieldset class="field field-wide"><legend>Добавить проводники вручную</legend><div class="form-grid compact-grid">
+        <div class="card form-grid raceway-workflow">
+          <div class="field field-wide"><span>Raceway</span><div id="raceway-summary" class="compact-summary"></div><button type="button" id="raceway-edit">Изменить</button></div>
+          <div class="field field-wide"><span>Состав трубы</span><div id="manual-list" class="circuit-list"></div><button type="button" id="open-conductor-panel">+ Добавить проводники</button></div>
+          <div id="conductor-panel" class="field field-wide add-panel" hidden>
+            <div class="tab-buttons"><button type="button" id="saved-tab" class="is-active">Из сохранённых</button><button type="button" id="manual-tab">Новые проводники</button></div>
+            <div id="saved-panel"><div id="raceway-saved-list" class="check-list"></div><button type="button" id="add-selected-saved">Добавить выбранные</button></div>
+          <fieldset id="manual-panel" class="field field-wide" hidden><legend>Новые проводники</legend><div class="form-grid compact-grid">
             <label class="field"><span>Описание</span><input id="manual-name" maxlength="80" placeholder="Группа проводников"></label>
             <label class="field"><span>Размер проводника</span><select id="manual-wire"></select></label>
             <label class="field"><span>Материал</span><select id="manual-material"><option value="copper">Медь</option><option value="aluminum">Алюминий</option></select></label>
             <label class="field"><span>Фактический ток нагрузки, А</span><input id="manual-amps" type="number" min="0.1" step="0.1"></label>
+            <label class="field"><span>Запланированный автомат, А</span><input id="manual-breaker" type="number" min="0.1" step="0.1"></label>
             <label class="field"><span>Температура изоляции</span><select id="manual-insulation"><option value="90">90°C</option><option value="75">75°C</option><option value="60">60°C</option></select></label>
             <label class="field"><span>Температура клемм</span><select id="manual-terminal"><option value="60">60°C</option><option value="75">75°C</option></select></label>
-            <label class="field"><span>Температура среды, °C</span><input id="manual-ambient" type="number" value="30" min="-50" max="85"></label>
+            <label class="field"><span>Условия прокладки</span><select id="manual-ambient-mode"><option value="indoor">В помещении / обычные условия</option><option value="rooftop">На крыше / жаркая зона</option><option value="custom">Другая температура</option></select></label>
+            <label class="field" id="manual-rooftop-field" hidden><span>Расчётная температура</span><select id="manual-rooftop-temp"><option>40</option><option>45</option><option>50</option><option selected>55</option><option>60</option></select></label>
+            <label class="field" id="manual-custom-field" hidden><span>Температура среды, °C</span><input id="manual-ambient" type="number" value="30" min="-50" max="85"></label>
             <label class="field"><span>Физическое количество фазных проводников</span><input id="manual-physical" type="number" min="1" step="1" value="1"></label>
             <label class="field"><span>Из них токонесущих (CCC)</span><input id="manual-ccc" type="number" min="0" step="1" value="1"></label>
             <label class="field"><span>Физическое количество нейтралей</span><input id="manual-neutrals" type="number" min="0" step="1" value="0"></label>
             <label class="field"><span>Из них токонесущих нейтралей</span><input id="manual-neutral-ccc" type="number" min="0" step="1" value="0"></label>
             <div class="field choice-group"><span>Нагрузка</span><label><input id="manual-continuous" type="checkbox"> Продолжительная · 125%</label></div>
-            <div class="form-actions field-wide"><button type="button" id="manual-add">Добавить строку</button></div>
+            <div class="form-actions field-wide"><button type="button" id="manual-add">Добавить в расчёт</button><button type="button" id="manual-add-save">Добавить и сохранить как circuit</button><button type="button" id="cancel-conductor-panel">Отмена</button></div>
           </div></fieldset>
-          <div class="field field-wide"><span>Проводники, добавленные вручную</span><div id="manual-list" class="circuit-list"></div></div>
+          </div>
+          <div id="raceway-editor" class="field field-wide form-grid compact-grid" hidden>
           <label class="field"><span>Тип трубы</span><select id="conduit-type"></select></label>
           <label class="field"><span>Размер трубы</span><select id="conduit-size"></select></label>
           <label class="field"><span>Размер EGC</span><select id="ground-wire"></select></label>
           <label class="field"><span>Количество EGC</span><input id="ground-count" type="number" min="0" step="1" value="1"></label>
+          <label class="field"><span>Условия температуры</span><select id="raceway-ambient-mode"><option value="indoor">В помещении / обычные условия</option><option value="rooftop">На крыше / жаркая зона</option><option value="custom">Другая температура</option></select></label>
+          <label class="field" id="raceway-rooftop-field" hidden><span>Расчётная температура</span><select id="raceway-rooftop-temp"><option>40</option><option>45</option><option>50</option><option selected>55</option><option>60</option></select></label>
+          <label class="field" id="raceway-custom-field" hidden><span>Температура среды, °C</span><input id="raceway-ambient" type="number" value="30" min="-50" max="85"></label>
           <div class="field choice-group"><span>Участок трубы</span><label><input id="conduit-nipple" type="checkbox"> Ниппель ≤24″ · заполнение 60%</label></div>
+          </div>
           <div class="form-actions field-wide"><button class="primary-button" type="button" id="calculate-derating">Рассчитать</button></div>
         </div>
         <div id="derating-result" class="result-card" aria-live="polite" hidden></div>
@@ -151,6 +165,6 @@
     </main>
   </div>
   <footer class="app-footer"><p>Расчёты выполнены по поддерживаемой части NEC 2023. Проверяйте специальные статьи оборудования и требования AHJ.</p></footer>
-  <script type="module" src="./app.js?v=20260802-2"></script>
+  <script type="module" src="./app.js?v=20260802-3"></script>
 </body>
 </html>

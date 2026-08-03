@@ -1,7 +1,7 @@
 import { NEC_DATASET, RACEWAY_TOTAL_AREA, STANDARD_OCPD_RATINGS, SUPPLY_SYSTEMS, WIRE_TABLE } from "./src/data/nec.js";
 import { draftToCircuit, duplicateCircuit, sizeCircuitDraft, updateCircuit } from "./src/domain/circuit-model.js";
-import { calculateDerating } from "./src/domain/derating.js";
-import { nextStandardOcpd } from "./src/domain/conductors.js";
+import { addUniqueSavedCircuits, calculateDerating } from "./src/domain/derating.js";
+import { ambientTemperatureForMode, nextStandardOcpd } from "./src/domain/conductors.js";
 import { layoutPanel } from "./src/domain/panel.js";
 import { calculateVoltageDrop } from "./src/domain/voltage-drop.js";
 import { clearProject, emptyProject, loadProject, saveProject, validateProject } from "./src/storage/project-store.js";
@@ -9,14 +9,16 @@ import { clearProject, emptyProject, loadProject, saveProject, validateProject }
 const ids = [
   "app-message", "compatibility-warning", "global-panel-type", "global-units", "line-count", "line-list",
   "sizing-form", "sizing-name", "sizing-amps", "sizing-length", "sizing-length-label", "sizing-material",
-  "sizing-insulation", "sizing-terminal", "sizing-ambient", "sizing-circuit-type", "sizing-neutral",
+  "sizing-insulation", "sizing-terminal", "sizing-ambient", "sizing-ambient-mode", "sizing-rooftop-temp", "sizing-rooftop-field", "sizing-custom-field", "sizing-circuit-type", "sizing-neutral",
   "sizing-continuous", "sizing-reset", "sizing-result", "sizing-result-actions", "sizing-save", "sizing-another",
   "voltage-form", "voltage-saved-field", "voltage-saved", "voltage-name", "voltage-amps", "voltage-length",
   "voltage-length-label", "voltage-material", "voltage-wire", "voltage-upstream", "voltage-circuit-type",
   "voltage-result", "voltage-actions", "voltage-save", "voltage-update", "voltage-save-new",
-  "raceway-saved-list", "manual-name", "manual-wire", "manual-material", "manual-amps", "manual-insulation",
-  "manual-terminal", "manual-ambient", "manual-physical", "manual-ccc", "manual-neutrals", "manual-neutral-ccc",
-  "manual-continuous", "manual-add", "manual-list", "conduit-type", "conduit-size", "ground-wire", "ground-count",
+  "raceway-saved-list", "manual-name", "manual-wire", "manual-material", "manual-amps", "manual-breaker", "manual-insulation",
+  "manual-terminal", "manual-ambient", "manual-ambient-mode", "manual-rooftop-temp", "manual-rooftop-field", "manual-custom-field", "manual-physical", "manual-ccc", "manual-neutrals", "manual-neutral-ccc",
+  "manual-continuous", "manual-add", "manual-add-save", "manual-list", "conduit-type", "conduit-size", "ground-wire", "ground-count",
+  "raceway-summary", "raceway-edit", "raceway-editor", "open-conductor-panel", "conductor-panel", "saved-tab", "manual-tab", "saved-panel", "manual-panel", "add-selected-saved", "cancel-conductor-panel",
+  "raceway-ambient", "raceway-ambient-mode", "raceway-rooftop-temp", "raceway-rooftop-field", "raceway-custom-field",
   "conduit-nipple", "calculate-derating", "derating-result", "panel-slots", "render-panel", "print-panel",
   "panel-stale", "panel-result", "panel-visual", "export-data", "import-data", "import-file", "reset-data"
 ];
@@ -28,6 +30,8 @@ let editingCircuitId = null;
 let voltageCalculation = null;
 let voltageCircuitId = null;
 let manualRows = [];
+let racewaySavedIds = new Set();
+let editingRacewayItemId = null;
 let messageTimer;
 
 const createId = () => globalThis.crypto?.randomUUID?.() ?? `circuit-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -77,6 +81,29 @@ function metric(label, value) {
   strong.textContent = value;
   item.append(caption, strong);
   return item;
+}
+
+function ambientFrom(prefix) {
+  return ambientTemperatureForMode(el[`${prefix}-ambient-mode`].value,
+    el[`${prefix}-ambient-mode`].value === "rooftop" ? el[`${prefix}-rooftop-temp`].value : el[`${prefix}-ambient`].value);
+}
+
+function updateAmbientFields(prefix) {
+  const mode = el[`${prefix}-ambient-mode`].value;
+  el[`${prefix}-rooftop-field`].hidden = mode !== "rooftop";
+  el[`${prefix}-custom-field`].hidden = mode !== "custom";
+  if (mode === "indoor") el[`${prefix}-ambient`].value = "30";
+}
+
+function detailsBlock(rows, references = []) {
+  const details = document.createElement("details");
+  const summary = document.createElement("summary"); summary.textContent = "Показать детали";
+  details.addEventListener("toggle", () => { summary.textContent = details.open ? "Скрыть детали" : "Показать детали"; });
+  const list = document.createElement("dl"); list.className = "detail-list";
+  rows.forEach(([label, value]) => { const dt = document.createElement("dt"); dt.textContent = label; const dd = document.createElement("dd"); dd.textContent = value; list.append(dt, dd); });
+  details.append(summary, list);
+  if (references.length) addReferences(details, references);
+  return details;
 }
 
 function resetResult(container) {
@@ -150,7 +177,7 @@ function circuitDraftFromSizingForm() {
     material: el["sizing-material"].value,
     insulationTemp: el["sizing-insulation"].value,
     terminalTemp: el["sizing-terminal"].value,
-    ambientC: el["sizing-ambient"].value,
+    ambientC: ambientFrom("sizing"),
     continuous: false,
     circuitType: el["sizing-circuit-type"].value,
     length: el["sizing-length"].value,
@@ -165,7 +192,11 @@ function fillSizingForm(circuit) {
   el["sizing-material"].value = circuit.material ?? "copper";
   el["sizing-insulation"].value = String(circuit.insulationTemp ?? 90);
   el["sizing-terminal"].value = String(circuit.terminalTemp ?? 60);
-  el["sizing-ambient"].value = circuit.ambientC ?? 30;
+  const ambient = Number(circuit.ambientC ?? 30);
+  el["sizing-ambient-mode"].value = ambient === 30 ? "indoor" : [40, 45, 50, 55, 60].includes(ambient) ? "rooftop" : "custom";
+  el["sizing-ambient"].value = ambient;
+  if ([40, 45, 50, 55, 60].includes(ambient)) el["sizing-rooftop-temp"].value = String(ambient);
+  updateAmbientFields("sizing");
   el["sizing-continuous"].checked = Boolean(circuit.continuous);
   el["sizing-neutral"].checked = Boolean(circuit.neutralCurrentCarrying);
   el["sizing-circuit-type"].value = circuit.circuitType ?? "branch";
@@ -178,22 +209,17 @@ function renderSizingResult(result) {
   const { sizing } = result;
   const container = el["sizing-result"];
   resetResult(container);
-  resultTitle(container, `Нужный проводник: ${sizing.wireSize}`);
-  const grid = document.createElement("div");
-  grid.className = "result-grid";
-  grid.append(
-    metric("Нужный проводник", `${sizing.wireSize} · ${result.rawDraft.material === "aluminum" ? "Al" : "Cu"}`),
-    metric("Запланированный брейкер", `${result.rawDraft.amps} A`),
-    metric("Допустимый ток проводника", `${sizing.allowableAmpacity.toFixed(1)} A`),
-    metric("Максимальный допустимый брейкер", `${sizing.maximumOcpd} A`),
-    metric("Ток по таблице 310.16", `${sizing.tableAmpacity} A`),
-    metric("Поправка по температуре", sizing.temperatureFactor.toFixed(2)),
-    metric("Поправка Derating", sizing.adjustmentFactor.toFixed(2)),
-    metric("После поправок", `${sizing.correctedAmpacity.toFixed(1)} A`),
-    metric("Ограничение клемм", `${sizing.terminalAmpacity} A`)
-  );
-  container.append(grid);
-  addReferences(container, ["Table 310.16", "310.15(B)(1)(1)", "110.14(C)", "240.4(D)"]);
+  resultTitle(container, "ПРОВОДНИК");
+  const summary = document.createElement("div"); summary.className = "result-summary";
+  summary.innerHTML = `<strong>${sizing.wireSize} ${result.rawDraft.material === "aluminum" ? "Al" : "Cu"}</strong><strong class="status-pass">ПРОХОДИТ</strong><span>Автомат: ${result.rawDraft.amps} A</span><span>Допустимый ток: ${sizing.allowableAmpacity.toFixed(1)} A</span>`;
+  container.append(summary, detailsBlock([
+    ["Ток нагрузки", `${sizing.requiredAmpacity.toFixed(1)} A`], ["Требуемая ampacity", `${sizing.requiredAmpacity.toFixed(1)} A`],
+    ["Запланированный автомат", `${result.rawDraft.amps} A`], ["Ток по Table 310.16", `${sizing.tableAmpacity} A`],
+    ["Температурный коэффициент", sizing.temperatureFactor.toFixed(2)], ["CCC adjustment factor", sizing.adjustmentFactor.toFixed(2)],
+    ["После поправок", `${sizing.correctedAmpacity.toFixed(1)} A`], ["Ограничение клемм", `${sizing.terminalAmpacity} A`],
+    ["Итоговый допустимый ток", `${sizing.allowableAmpacity.toFixed(1)} A`], ["Maximum permitted OCPD", `${sizing.maximumOcpd} A`],
+    ["Причина результата", sizing.reason.message]
+  ], ["Table 310.16", "310.15(B)(1)(1)", "110.14(C)", "240.4(D)"]));
   el["sizing-result-actions"].hidden = false;
   el["sizing-save"].textContent = editingCircuitId ? "Обновить цепь" : "Сохранить как цепь";
 }
@@ -245,6 +271,8 @@ function resetSizing(preservePreferences = false) {
   el["sizing-form"].reset();
   el["sizing-amps"].value = "20";
   el["sizing-ambient"].value = preferences?.ambient ?? 30;
+  if (!preferences) el["sizing-ambient-mode"].value = "indoor";
+  updateAmbientFields("sizing");
   if (preferences) {
     el["sizing-material"].value = preferences.material;
     el["sizing-insulation"].value = preferences.insulation;
@@ -389,43 +417,63 @@ function manualRowFromForm() {
   if (cccQuantity > conductorQuantity) throw new RangeError("Количество CCC больше физического количества фазных проводников");
   if (currentCarryingNeutralQuantity > neutralQuantity) throw new RangeError("Токонесущих нейтралей больше физического количества нейтралей");
   const amps = Number(el["manual-amps"].value);
+  const plannedOcpd = Number(el["manual-breaker"].value || amps);
   if (!Number.isFinite(amps) || amps <= 0) throw new RangeError("Фактический ток должен быть положительным");
   return {
-    id: createId(), name: el["manual-name"].value.trim() || `Группа ${manualRows.length + 1}`,
+    id: editingRacewayItemId ?? createId(), source: "manual", name: el["manual-name"].value.trim() || `Группа ${manualRows.length + 1}`,
     wireSize: el["manual-wire"].value, material: el["manual-material"].value,
     insulationTemp: Number(el["manual-insulation"].value), terminalTemp: Number(el["manual-terminal"].value),
-    ambientC: Number(el["manual-ambient"].value), amps, continuous: el["manual-continuous"].checked,
+    ambientC: ambientFrom("manual"), amps, plannedOcpd, continuous: el["manual-continuous"].checked,
     hundredPercentRated: false, conductorQuantity, cccQuantity, neutralQuantity, currentCarryingNeutralQuantity
   };
 }
 
-function addManualRow() {
+function addManualRow(saveAsCircuit = false) {
   try {
-    manualRows = [...manualRows, manualRowFromForm()];
+    const row = manualRowFromForm();
+    manualRows = editingRacewayItemId ? manualRows.map((item) => item.id === editingRacewayItemId ? row : item) : [...manualRows, row];
+    editingRacewayItemId = null;
+    if (saveAsCircuit) saveManualRow(row.id);
     el["manual-name"].value = "";
     el["manual-amps"].value = "";
+    el["manual-breaker"].value = "";
     renderManualRows();
+    el["conductor-panel"].hidden = true;
   } catch (error) { showMessage(error.message, true); }
 }
 
 function renderManualRows() {
   el["manual-list"].replaceChildren();
-  if (!manualRows.length) {
-    const empty = document.createElement("div"); empty.className = "empty-state"; empty.textContent = "Ручных строк пока нет."; el["manual-list"].append(empty); return;
+  const savedRows = project.circuits.filter((circuit) => racewaySavedIds.has(circuit.id)).map((circuit) => ({ ...circuit, source: "saved", sourceId: circuit.id, conductorQuantity: circuit.phase, cccQuantity: circuit.phase, neutralQuantity: circuit.neutral ? 1 : 0, currentCarryingNeutralQuantity: circuit.neutralCurrentCarrying ? 1 : 0 }));
+  const rows = [...savedRows, ...manualRows];
+  if (!rows.length) {
+    const empty = document.createElement("div"); empty.className = "empty-state"; empty.textContent = "Добавьте сохранённые цепи или новые проводники."; el["manual-list"].append(empty); return;
   }
-  manualRows.forEach((row) => {
+  rows.forEach((row) => {
     const item = document.createElement("article"); item.className = "circuit-item";
     const text = document.createElement("div");
     const title = document.createElement("h4"); title.textContent = row.name;
     const meta = document.createElement("div"); meta.className = "circuit-meta";
-    meta.textContent = `${row.wireSize} · ${row.amps} A · физических ${row.conductorQuantity + row.neutralQuantity} · CCC ${row.cccQuantity + row.currentCarryingNeutralQuantity}`;
+    meta.textContent = `${row.wireSize} ${row.material === "aluminum" ? "Al" : "Cu"}\n${row.conductorQuantity + row.neutralQuantity} физических · ${row.cccQuantity + row.currentCarryingNeutralQuantity} CCC\n${row.source === "saved" ? "Сохранённая цепь" : "Добавлено вручную"}`;
     text.append(title, meta);
     const actions = document.createElement("div"); actions.className = "item-actions";
-    [["Сохранить как цепь", "save-manual"], ["Удалить", "delete-manual"]].forEach(([label, action]) => {
+    [["Изменить", "edit-raceway"], ["Удалить", "delete-raceway"]].forEach(([label, action]) => {
       const button = document.createElement("button"); button.type = "button"; button.textContent = label; button.setAttribute(`data-${action}`, row.id); actions.append(button);
     });
     item.append(text, actions); el["manual-list"].append(item);
   });
+}
+
+function removeRacewayItem(id) {
+  if (racewaySavedIds.has(id)) racewaySavedIds.delete(id);
+  else manualRows = manualRows.filter((row) => row.id !== id);
+  renderCircuitSelectors(); renderManualRows();
+}
+
+function renderRacewaySummary() {
+  const ambient = ambientFrom("raceway");
+  const ambientLabel = el["raceway-ambient-mode"].value === "indoor" ? "помещение" : `${ambient}°C`;
+  el["raceway-summary"].textContent = `${el["conduit-type"].value} ${conduitSizeLabel(el["conduit-size"].value)} · ${el["conduit-nipple"].checked ? "Ниппель ≤24″" : "Обычная длина"}\nAmbient: ${ambientLabel}\nEGC: ${el["ground-count"].value} × ${el["ground-wire"].value} Cu`;
 }
 
 function saveManualRow(id) {
@@ -434,7 +482,7 @@ function saveManualRow(id) {
     if (!row) throw new RangeError("Ручная строка не найдена");
     if (![1, 2, 3].includes(row.conductorQuantity) || row.neutralQuantity > 1) throw new RangeError("Для сохранения как circuit нужны 1–3 фазных проводника и не более одной нейтрали");
     const draft = {
-      name: row.name, amps: row.amps, phase: row.conductorQuantity,
+      name: row.name, amps: row.plannedOcpd, phase: row.conductorQuantity,
       neutralCurrentCarrying: row.currentCarryingNeutralQuantity > 0, material: row.material,
       insulationTemp: row.insulationTemp, terminalTemp: row.terminalTemp, ambientC: row.ambientC,
       continuous: row.continuous, length: null, lengthUnit: project.unitSystem
@@ -447,39 +495,37 @@ function saveManualRow(id) {
 
 function calculateRaceway() {
   try {
-    const selectedIds = new Set([...el["raceway-saved-list"].querySelectorAll('input[type="checkbox"]:checked')].map((box) => box.value));
-    const savedCircuits = project.circuits.filter((circuit) => selectedIds.has(circuit.id)).map((circuit) => {
+    const savedCircuits = project.circuits.filter((circuit) => racewaySavedIds.has(circuit.id)).map((circuit) => {
       const input = el["raceway-saved-list"].querySelector(`[data-load-for="${CSS.escape(circuit.id)}"]`);
       const actualAmps = Number(input?.value);
       if (!Number.isFinite(actualAmps) || actualAmps <= 0) throw new RangeError(`Укажите фактический ток для цепи «${circuit.name}»`);
-      return { ...circuit, amps: actualAmps };
+      return { ...circuit, amps: actualAmps, plannedOcpd: circuit.amps, ambientC: ambientFrom("raceway") };
     });
-    const circuits = [...savedCircuits, ...manualRows];
+    const circuits = [...savedCircuits, ...manualRows.map((row) => ({ ...row, ambientC: ambientFrom("raceway") }))];
     const result = calculateDerating({
       circuits, conduitType: el["conduit-type"].value, conduitSize: el["conduit-size"].value,
       groundWireSize: el["ground-wire"].value, groundCount: Number(el["ground-count"].value), nipple: el["conduit-nipple"].checked
     });
     const container = el["derating-result"]; resetResult(container); container.classList.toggle("is-danger", result.overfilled);
-    resultTitle(container, result.overfilled ? "Заполнение трубы: НЕ ПРОХОДИТ" : "Заполнение трубы: ПРОХОДИТ");
-    const grid = document.createElement("div"); grid.className = "result-grid";
-    grid.append(
-      metric("Площадь проводников", `${result.occupiedArea.toFixed(4)} in²`),
-      metric("Допустимая площадь", `${result.maximumFillArea.toFixed(4)} in²`),
-      metric("Фактическое заполнение", `${result.actualFillPercent.toFixed(1)}%`),
-      metric("Допустимый предел", `${(result.fillLimit * 100).toFixed(0)}%`),
-      metric("Всего физических проводников", String(result.installedConductorCount)),
-      metric("Всего токонесущих (CCC)", String(result.currentCarryingCount)),
-      metric("Коэффициент Derating", result.adjustmentFactor.toFixed(2)),
-      metric("Вклад EGC", `${el["ground-count"].value} × ${el["ground-wire"].value}`)
-    );
-    container.append(grid);
-    const list = document.createElement("ul"); list.className = "result-list";
+    resultTitle(container, "RACEWAY FILL");
+    const summary = document.createElement("div"); summary.className = "result-summary";
+    summary.innerHTML = `<strong>${result.actualFillPercent.toFixed(1)}% / ${(result.fillLimit * 100).toFixed(0)}%</strong><strong class="${result.overfilled ? "status-fail" : "status-pass"}">${result.overfilled ? "НЕ ПРОХОДИТ" : "ПРОХОДИТ"}</strong><span>CCC: ${result.currentCarryingCount}</span><span>Derating: ${result.adjustmentFactor.toFixed(2)}</span><span>EGC: ${el["ground-count"].value} × ${el["ground-wire"].value} Cu</span>`;
+    container.append(summary, detailsBlock([["Физических проводников", String(result.installedConductorCount)], ["Занятая площадь", `${result.occupiedArea.toFixed(4)} in²`], ["Допустимая площадь", `${result.maximumFillArea.toFixed(4)} in²`]], result.references));
+    const list = document.createElement("div"); list.className = "circuit-list result-circuits";
     result.circuits.forEach((circuit) => {
-      const li = document.createElement("li");
-      li.textContent = `${circuit.name}: по таблице ${circuit.tableAmpacity} A · температура ${circuit.temperatureFactor.toFixed(2)} · допустимо ${circuit.allowableAmpacity.toFixed(1)} A · требуется ${circuit.requiredAmpacity.toFixed(1)} A · клеммы ${circuit.terminalAmpacity} A · ${circuit.originalPasses ? "ПРОХОДИТ" : "НЕ ПРОХОДИТ"}`;
-      list.append(li);
+      const card = document.createElement("article"); card.className = "circuit-item result-item";
+      const material = circuits.find((item) => item.id === circuit.id)?.material === "aluminum" ? "Al" : "Cu";
+      const recommendation = !circuit.originalPasses ? (circuit.requiredSize ? `Рекомендация: увеличить до ${circuit.requiredSize} ${material}` : "Подходящий проводник не найден в поддерживаемом диапазоне.") : "";
+      const main = document.createElement("div"); const title = document.createElement("h4"); title.textContent = circuit.name;
+      const line = document.createElement("div"); line.className = "result-line"; const wire = document.createElement("strong"); wire.textContent = `${circuit.originalSize} ${material}`; const status = document.createElement("strong"); status.className = circuit.originalPasses ? "status-pass" : "status-fail"; status.textContent = circuit.originalPasses ? "ПРОХОДИТ" : "НЕ ПРОХОДИТ"; line.append(wire, status); main.append(title, line);
+      if (!circuit.originalPasses) [
+        `Автомат: ${circuit.plannedOcpd} A`, recommendation, circuit.reason.message
+      ].forEach((value) => { const p = document.createElement("p"); p.textContent = value; main.append(p); });
+      card.append(main);
+      card.append(detailsBlock([["Ток нагрузки", `${circuits.find((item) => item.id === circuit.id)?.amps} A`], ["Требуемая ampacity", `${circuit.requiredAmpacity.toFixed(1)} A`], ["Автомат", `${circuit.plannedOcpd} A`], ["Ток по Table 310.16", `${circuit.tableAmpacity} A`], ["Температурный коэффициент", circuit.temperatureFactor.toFixed(2)], ["Derating factor", result.adjustmentFactor.toFixed(2)], ["После поправок", `${circuit.correctedAmpacity.toFixed(1)} A`], ["Ограничение клемм", `${circuit.terminalAmpacity} A`], ["Итоговый допустимый ток", `${circuit.allowableAmpacity.toFixed(1)} A`], ["Причина результата", circuit.reason.message]], result.references));
+      list.append(card);
     });
-    container.append(list); addReferences(container, result.references);
+    container.append(list);
   } catch (error) { showMessage(error.message, true); }
 }
 
@@ -493,7 +539,7 @@ function renderCircuitList() {
     const item = document.createElement("article"); item.className = "circuit-item";
     const details = document.createElement("div"); const title = document.createElement("h4"); title.textContent = circuit.name;
     const meta = document.createElement("div"); meta.className = "circuit-meta";
-    meta.textContent = `брейкер ${circuit.amps} A · ${circuit.phase} пол.${circuit.neutralCurrentCarrying ? " + токонесущая нейтраль" : ""} · ${circuit.wireSize} · ${circuit.material === "aluminum" ? "Al" : "Cu"}${circuit.length !== null ? ` · ${circuit.length} ${circuit.lengthUnit}` : ""}`;
+    meta.textContent = `автомат ${circuit.amps} A · ${circuit.phase} пол.${circuit.neutralCurrentCarrying ? " + токонесущая нейтраль" : ""} · ${circuit.wireSize} · ${circuit.material === "aluminum" ? "Al" : "Cu"}${circuit.length !== null ? ` · ${circuit.length} ${circuit.lengthUnit}` : ""}`;
     details.append(title, meta);
     const actions = document.createElement("div"); actions.className = "item-actions";
     [["Редактировать", "edit-circuit"], ["Дублировать", "duplicate-circuit"], ["Падение напряжения", "voltage-circuit"], ["Удалить", "delete-circuit"]].forEach(([label, action]) => {
@@ -511,13 +557,27 @@ function renderCircuitSelectors() {
   if (!project.circuits.length) { const p = document.createElement("p"); p.className = "circuit-meta"; p.textContent = "Нет сохранённых цепей — добавьте проводники вручную."; el["raceway-saved-list"].append(p); }
   project.circuits.forEach((circuit) => {
     const label = document.createElement("label"); const box = document.createElement("input"); box.type = "checkbox"; box.value = circuit.id;
-    const text = document.createElement("span"); text.textContent = `${circuit.name} · брейкер ${circuit.amps} A · ${circuit.wireSize} · ${circuit.phase} пол.`;
-    const load = document.createElement("input"); load.type = "number"; load.min = "0.1"; load.step = "0.1"; load.inputMode = "decimal"; load.placeholder = "Фактический ток, А"; load.setAttribute("aria-label", `Фактический ток цепи ${circuit.name}`); load.setAttribute("data-load-for", circuit.id);
+    box.checked = racewaySavedIds.has(circuit.id); box.disabled = racewaySavedIds.has(circuit.id);
+    const text = document.createElement("span"); text.textContent = `${circuit.name} — ${circuit.wireSize} ${circuit.material === "aluminum" ? "Al" : "Cu"} — ${circuit.phase}P${box.disabled ? " · добавлено" : ""}`;
+    const load = document.createElement("input"); load.type = "number"; load.min = "0.1"; load.step = "0.1"; load.inputMode = "decimal"; load.value = circuit.amps; load.setAttribute("aria-label", `Фактический ток цепи ${circuit.name}`); load.setAttribute("data-load-for", circuit.id);
     label.append(box, text, load); el["raceway-saved-list"].append(label);
   });
 }
 
 function renderProject() { renderCircuitList(); renderCircuitSelectors(); updateCompatibility(); }
+
+function openRacewayEditor(row) {
+  if (row.source === "saved") {
+    showMessage("Изменение сохранённой цепи доступно в разделе «Цепи»; удалите её из расчёта и добавьте временную версию для локальных изменений.");
+    return;
+  }
+  editingRacewayItemId = row.id;
+  el["manual-name"].value = row.name; el["manual-wire"].value = row.wireSize; el["manual-material"].value = row.material;
+  el["manual-amps"].value = row.amps; el["manual-breaker"].value = row.plannedOcpd; el["manual-insulation"].value = row.insulationTemp; el["manual-terminal"].value = row.terminalTemp;
+  el["manual-physical"].value = row.conductorQuantity; el["manual-ccc"].value = row.cccQuantity; el["manual-neutrals"].value = row.neutralQuantity; el["manual-neutral-ccc"].value = row.currentCarryingNeutralQuantity;
+  el["manual-continuous"].checked = row.continuous; el["manual-ambient-mode"].value = row.ambientC === 30 ? "indoor" : [40,45,50,55,60].includes(row.ambientC) ? "rooftop" : "custom"; el["manual-ambient"].value = row.ambientC; el["manual-rooftop-temp"].value = row.ambientC;
+  updateAmbientFields("manual"); el["conductor-panel"].hidden = false; el["saved-panel"].hidden = true; el["manual-panel"].hidden = false;
+}
 
 function editCircuit(id) {
   const circuit = project.circuits.find((item) => item.id === id); if (!circuit) return;
@@ -603,10 +663,18 @@ function registerEvents() {
   el["global-panel-type"].addEventListener("input", changePanelSystem); el["global-panel-type"].addEventListener("change", changePanelSystem);
   el["global-units"].addEventListener("change", () => { project.unitSystem = el["global-units"].value === "m" ? "m" : "ft"; persist(); setUnitLabels(); });
   document.querySelectorAll('input[name="sizing-phase"]').forEach((radio) => radio.addEventListener("change", updateSizingNeutral));
-  el["sizing-form"].addEventListener("submit", calculateSizing); el["sizing-save"].addEventListener("click", saveSizingCircuit); el["sizing-reset"].addEventListener("click", () => resetSizing()); el["sizing-another"].addEventListener("click", () => resetSizing(true));
+  el["sizing-form"].addEventListener("submit", calculateSizing); el["sizing-save"].addEventListener("click", saveSizingCircuit); el["sizing-reset"].addEventListener("click", () => resetSizing()); el["sizing-another"].addEventListener("click", () => resetSizing(true)); el["sizing-ambient-mode"].addEventListener("change", () => updateAmbientFields("sizing"));
   document.querySelectorAll('input[name="voltage-mode"]').forEach((radio) => radio.addEventListener("change", changeVoltageMode));
   el["voltage-saved"].addEventListener("change", selectVoltageCircuit); el["voltage-form"].addEventListener("submit", calculateVoltage); el["voltage-save"].addEventListener("click", () => saveVoltage(false)); el["voltage-update"].addEventListener("click", () => saveVoltage(true)); el["voltage-save-new"].addEventListener("click", () => saveVoltage(false));
-  el["manual-add"].addEventListener("click", addManualRow); el["manual-list"].addEventListener("click", (event) => { const save = event.target.closest("[data-save-manual]"); const remove = event.target.closest("[data-delete-manual]"); if (save) saveManualRow(save.dataset.saveManual); if (remove) { manualRows = manualRows.filter((row) => row.id !== remove.dataset.deleteManual); renderManualRows(); } });
+  el["manual-add"].addEventListener("click", () => addManualRow(false)); el["manual-add-save"].addEventListener("click", () => addManualRow(true)); el["manual-ambient-mode"].addEventListener("change", () => updateAmbientFields("manual"));
+  el["open-conductor-panel"].addEventListener("click", () => { el["conductor-panel"].hidden = false; el["saved-panel"].hidden = false; el["manual-panel"].hidden = true; });
+  el["saved-tab"].addEventListener("click", () => { el["saved-panel"].hidden = false; el["manual-panel"].hidden = true; }); el["manual-tab"].addEventListener("click", () => { el["saved-panel"].hidden = true; el["manual-panel"].hidden = false; });
+  el["add-selected-saved"].addEventListener("click", () => { const selected = [...el["raceway-saved-list"].querySelectorAll('input[type="checkbox"]:checked:not(:disabled)')].map((box) => box.value); const merged = addUniqueSavedCircuits([...racewaySavedIds].map((sourceId) => ({ source: "saved", sourceId })), project.circuits.filter((circuit) => selected.includes(circuit.id))); racewaySavedIds = new Set(merged.map((item) => item.sourceId)); el["conductor-panel"].hidden = true; renderCircuitSelectors(); renderManualRows(); });
+  el["cancel-conductor-panel"].addEventListener("click", () => { editingRacewayItemId = null; el["conductor-panel"].hidden = true; });
+  el["raceway-edit"].addEventListener("click", () => { el["raceway-editor"].hidden = !el["raceway-editor"].hidden; });
+  el["raceway-ambient-mode"].addEventListener("change", () => { updateAmbientFields("raceway"); renderRacewaySummary(); });
+  ["conduit-type", "conduit-size", "ground-wire", "ground-count", "conduit-nipple", "raceway-rooftop-temp", "raceway-ambient"].forEach((id) => el[id].addEventListener("change", renderRacewaySummary));
+  el["manual-list"].addEventListener("click", (event) => { const edit = event.target.closest("[data-edit-raceway]"); const remove = event.target.closest("[data-delete-raceway]"); if (edit) { const row = manualRows.find((item) => item.id === edit.dataset.editRaceway) ?? project.circuits.find((item) => item.id === edit.dataset.editRaceway); if (row) openRacewayEditor({ ...row, source: manualRows.some((item) => item.id === row.id) ? "manual" : "saved" }); } if (remove) removeRacewayItem(remove.dataset.deleteRaceway); });
   el["conduit-type"].addEventListener("change", renderConduitSizes); el["calculate-derating"].addEventListener("click", calculateRaceway);
   el["line-list"].addEventListener("click", (event) => { const target = event.target; const edit = target.closest("[data-edit-circuit]"); const copy = target.closest("[data-duplicate-circuit]"); const voltage = target.closest("[data-voltage-circuit]"); const remove = target.closest("[data-delete-circuit]"); if (edit) editCircuit(edit.dataset.editCircuit); if (copy) duplicateSavedCircuit(copy.dataset.duplicateCircuit); if (voltage) openCircuitVoltage(voltage.dataset.voltageCircuit); if (remove) deleteCircuit(remove.dataset.deleteCircuit); });
   el["render-panel"].addEventListener("click", renderPanel); el["print-panel"].addEventListener("click", () => el["panel-visual"].querySelector("table") ? window.print() : showMessage("Сначала постройте панель", true));
@@ -614,7 +682,7 @@ function registerEvents() {
 }
 
 function initialize() {
-  renderWireOptions(); renderConduitOptions(); renderAll(); updateSizingNeutral(); registerEvents(); showSection("sizing");
+  renderWireOptions(); renderConduitOptions(); renderAll(); updateSizingNeutral(); updateAmbientFields("sizing"); updateAmbientFields("manual"); updateAmbientFields("raceway"); renderRacewaySummary(); registerEvents(); showSection("sizing");
   console.info(`CalcuVolt dataset: ${NEC_DATASET.id} (${NEC_DATASET.status})`);
   if ("serviceWorker" in navigator && location.protocol !== "file:") window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch((error) => console.warn("Service worker registration failed", error)));
 }

@@ -45,6 +45,7 @@ export function evaluateWire({
   ambientC = 30,
   adjustmentFactor = 1,
   loadAmps,
+  plannedOcpd = null,
   continuous = false,
   hundredPercentRated = false
 }) {
@@ -66,6 +67,21 @@ export function evaluateWire({
   const smallConductorLimit = SMALL_CONDUCTOR_OCPD_LIMITS[material]?.[wireSize] ?? Infinity;
   const maximumOcpd = Math.min(allowableAmpacity, smallConductorLimit);
   const requiredOcpd = nextStandardOcpd(requiredAmpacity);
+  const selectedOcpd = plannedOcpd === null || plannedOcpd === undefined || plannedOcpd === ""
+    ? requiredOcpd
+    : requirePositiveNumber(plannedOcpd, "Запланированный автомат");
+  const loadPasses = requiredAmpacity <= allowableAmpacity;
+  const ocpdPasses = selectedOcpd !== null && selectedOcpd <= maximumOcpd;
+  let reason = { code: "pass", message: "Проводник проходит нагрузку и выбранный автомат" };
+  if (!loadPasses) {
+    reason = correctedAmpacity > terminalAmpacity
+      ? { code: "terminal_limit", message: `ограничение клемм ${terminalAmpacity} A ниже требуемых ${requiredAmpacity.toFixed(1)} A` }
+      : { code: continuous ? "continuous_load" : "insufficient_ampacity", message: `допустимый ток ${allowableAmpacity.toFixed(1)} A ниже требуемых ${requiredAmpacity.toFixed(1)} A` };
+  } else if (!ocpdPasses) {
+    reason = correctedAmpacity > terminalAmpacity
+      ? { code: "terminal_limit", message: `автомат ${selectedOcpd} A превышает ограничение клемм ${terminalAmpacity} A` }
+      : { code: "planned_ocpd", message: `автомат ${selectedOcpd} A превышает допустимые ${maximumOcpd.toFixed(1)} A` };
+  }
 
   return {
     wireSize,
@@ -78,9 +94,44 @@ export function evaluateWire({
     allowableAmpacity,
     requiredAmpacity,
     requiredOcpd,
+    plannedOcpd: selectedOcpd,
     maximumOcpd,
-    passes: requiredAmpacity <= allowableAmpacity && requiredOcpd !== null && requiredOcpd <= maximumOcpd
+    loadPasses,
+    ocpdPasses,
+    reason,
+    passes: loadPasses && ocpdPasses
   };
+}
+
+export function recommendNextWireSize(options) {
+  const currentIndex = WIRE_TABLE.findIndex((wire) => wire.size === options.wireSize);
+  if (currentIndex < 0) findWire(options.wireSize);
+  for (const wire of WIRE_TABLE.slice(currentIndex + 1)) {
+    try {
+      const result = evaluateWire({ ...options, wireSize: wire.size });
+      if (result.passes) return result;
+    } catch (error) {
+      if (!/недоступен/.test(error.message)) throw error;
+    }
+  }
+  return null;
+}
+
+export const AMBIENT_PRESETS = Object.freeze({ indoor: 30, rooftop: 55 });
+
+export function ambientTemperatureForMode(mode, value) {
+  if (mode === "indoor") return AMBIENT_PRESETS.indoor;
+  if (mode === "rooftop") {
+    const temperature = Number(value ?? AMBIENT_PRESETS.rooftop);
+    if (![40, 45, 50, 55, 60].includes(temperature)) throw new RangeError("Выберите температуру жаркой зоны");
+    return temperature;
+  }
+  if (mode === "custom") {
+    const temperature = Number(value);
+    if (!Number.isFinite(temperature) || temperature < -50 || temperature > 85) throw new RangeError("Температура должна быть от −50°C до 85°C");
+    return temperature;
+  }
+  throw new RangeError("Неизвестные условия прокладки");
 }
 
 export function selectWireSize(optionsOrAmps, legacyTemperature = 75) {

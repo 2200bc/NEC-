@@ -2,9 +2,20 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   adjustmentFactor,
+  addUniqueSavedCircuits,
   calculateDerating,
   racewayFillLimit
 } from "../src/domain/derating.js";
+
+test("saved and manual conductors mix without duplicate saved circuits", () => {
+  const saved = circuit({ id: "saved-1", name: "VFD", phase: 3, neutral: false, neutralCurrentCarrying: false });
+  const manual = { ...circuit({ id: "manual-1" }), source: "manual" };
+  const once = addUniqueSavedCircuits([manual], [saved]);
+  const twice = addUniqueSavedCircuits(once, [saved]);
+  assert.equal(twice.length, 2);
+  const result = calculateDerating({ circuits: twice, conduitType: "EMT", conduitSize: "1" });
+  assert.equal(result.circuits.length, 2);
+});
 
 const circuit = (overrides = {}) => ({
   id: "c1",

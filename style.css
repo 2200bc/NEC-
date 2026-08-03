@@ -449,6 +449,34 @@ input[type="checkbox"] {
   margin-bottom: 0.6rem;
 }
 
+.result-summary,
+.result-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.35rem 1rem;
+  align-items: baseline;
+}
+
+.status-pass { color: var(--accent); }
+.status-fail { color: var(--danger); }
+
+.detail-list {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) auto;
+  gap: 0.35rem 1rem;
+  margin: 0.8rem 0;
+}
+
+.detail-list dt { color: var(--muted); }
+.detail-list dd { margin: 0; text-align: right; }
+details > summary { cursor: pointer; margin-top: 0.8rem; color: var(--accent); }
+.compact-summary, .circuit-meta { white-space: pre-line; }
+.add-panel { border-top: 1px solid var(--border); padding-top: 1rem; }
+.tab-buttons { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; }
+.result-circuits { margin-top: 1rem; }
+.result-item { align-items: start; }
+.result-item p { margin: 0.25rem 0 0; }
+
 .result-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -648,8 +676,11 @@ footer a {
   }
 
   .circuit-item button {
-    width: 100%;
+    max-width: 100%;
   }
+
+  .detail-list { grid-template-columns: 1fr; gap: 0.1rem; }
+  .detail-list dd { margin: 0 0 0.5rem; text-align: left; }
 
   .item-actions {
     display: grid;
